@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "rusyasearch": {
+      "command": "/home/rusya/RusyaSearch/.venv/bin/python3",
+      "args": [
+        "/home/rusya/RusyaSearch/mcp_server.py"
+      ],
+      "description": "RusyaSearch 2.0 MCP Server — Pesquisa no Google/Web, navega e extrai Markdown limpo para Agentes AI."
+    }
+  }
+}

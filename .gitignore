@@ -1,0 +1,28 @@
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache & compiled
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Runtime & Indices
+*.log
+index.json
+*.db
+*.sqlite3
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary downloads & artifacts
+downloads/
+temp/
