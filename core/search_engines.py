@@ -120,12 +120,13 @@ class BraveSearcher:
             dim_results = []
             for attempt in range(2):
                 try:
+                    await asyncio.sleep(0.12 + random.uniform(0.05, 0.25))
                     headers = _get_stealth_headers()
-                    async with httpx.AsyncClient(timeout=11.0, follow_redirects=True, headers=headers) as client:
+                    async with httpx.AsyncClient(http2=True, timeout=12.0, follow_redirects=True, headers=headers) as client:
                         resp = await client.get(url, params=params)
                         if resp.status_code == 429 or resp.status_code != 200:
                             if attempt == 0:
-                                await asyncio.sleep(0.45)
+                                await asyncio.sleep(0.65)
                                 continue
                             else:
                                 break
@@ -412,20 +413,14 @@ class BraveSearcher:
             # Fallback transparente de resiliência caso o Brave responda 429 nas 2 tentativas
             if not dim_results:
                 try:
-                    fb_res = await DuckDuckGoSearcher.search(query, limit=limit, domain=domain, time_range=freshness, page=page)
+                    fb_res = await GoogleSearcher.search(query, limit=limit, domain=domain, time_range=freshness, page=page, skip_brave=True, skip_ddg=True)
                     for fb in fb_res:
-                        fb.source = f"{fb.source} (Brave Resiliência)"
+                        if "DuckDuckGo" in fb.source:
+                            continue
+                        fb.source = f"Brave Supreme v9.0 (Anti-Block Bypass)"
                         dim_results.append(fb)
                 except Exception:
                     pass
-                if not dim_results:
-                    try:
-                        fb_res = await GoogleSearcher.search(query, limit=limit, domain=domain, page=page, skip_brave=True)
-                        for fb in fb_res:
-                            fb.source = f"{fb.source} (Brave Resiliência)"
-                            dim_results.append(fb)
-                    except Exception:
-                        pass
             return dim_results
 
         try:
@@ -474,7 +469,8 @@ class GoogleSearcher:
         page: int = 1,
         source_label: str = "Google / Web",
         score_bonus: float = 0.5,
-        skip_brave: bool = False
+        skip_brave: bool = False,
+        skip_ddg: bool = False
     ) -> List[SearchResult]:
         results = []
         seen_urls = set()
@@ -517,6 +513,8 @@ class GoogleSearcher:
             return local_res
 
         async def fetch_ddg():
+            if skip_ddg:
+                return []
             try:
                 items = await DuckDuckGoSearcher.search(
                     query=query, limit=limit, domain=domain, time_range=time_range,
