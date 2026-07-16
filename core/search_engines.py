@@ -3,6 +3,7 @@ import os
 import json
 import re
 import httpx
+import html
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus, quote
 from dataclasses import dataclass, asdict
@@ -29,12 +30,15 @@ class SearchResult:
 
 class BraveSearcher:
     """
-    Motor de Busca Avançado (BraveSearcher v6.0 — 100% Grátis & Sem Chaves de API).
-    Realiza extração direta de dados do ecossistema Brave sem depender de serviços pagos:
-    1. Análise do Payload SvelteKit (`kit.start window data` AST) para capturar resultados puros diretamente no JS antes da renderização.
-    2. Busca simultânea com o filtro técnico `tech.goggles` para desenvolvedores (elimina spam e foca em GitHub/Stack Overflow/ArXiv).
-    3. Extração estruturada de painéis informativos (`Knowledge Cards`), Q&As diretos e Sitelinks.
-    4. Mapeamento de sugestões e autocompletar (`Related Queries`).
+    Motor de Busca Avançado (BraveSearcher v7.0 — 100% Grátis & Sem Chaves de API).
+    Realiza extração direta do ecossistema Brave sem serviços pagos, através de 7 clusters especializados:
+    1. Análise do Payload SvelteKit (`kit.start window data` AST) para capturar 100% dos dados originais no JS.
+    2. Cluster de Conhecimento (`infobox`): Painéis de entidades com atributos dinâmicos e metadados.
+    3. Cluster de Perguntas & Respostas (`faq` e `qa`): Extração direta de perguntas e respostas precisas.
+    4. Cluster de Discussões & Reddit (`discussions` e `similar_pages`): Captura de debates em comunidades técnicas.
+    5. Cluster de Vídeos (`videos`) e Notícias (`news`): Recursos em tempo real organizados por categoria.
+    6. Busca Simultânea com Filtros para Desenvolvedores (`tech.goggles`): Remove spam de SEO e foca em ArXiv/GitHub/Stack Overflow.
+    7. API de Autocompletar (`Suggest API`): Sugestões em tempo real para expansão de palavras-chave.
     """
     @classmethod
     async def search(
@@ -61,22 +65,40 @@ class BraveSearcher:
             "Upgrade-Insecure-Requests": "1"
         }
 
-        # Dimensões Quânticas 100% Gratuitas e Sem API Paga!
         urls_params = [
             ("https://search.brave.com/search", {"q": full_query, "offset": page - 1, "source": "web"}, "Brave Organic")
         ]
         if quantum_parallel and not domain:
-            # Adiciona dimensão Brave Tech Goggles (eliminação 100% de spam de SEO e foco em desenvolvedores)
             urls_params.append((
                 "https://search.brave.com/search",
                 {"q": full_query, "offset": page - 1, "goggles_id": "https://raw.githubusercontent.com/brave/goggles-quickstart/main/goggles/tech.goggles"},
                 "Brave Tech Goggles"
             ))
 
+        async def fetch_suggest():
+            try:
+                async with httpx.AsyncClient(timeout=4.0, headers=headers) as client:
+                    resp = await client.get("https://search.brave.com/api/suggest", params={"q": query})
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
+                            suggestions = [str(item) for item in data[1] if isinstance(item, str) and item != query]
+                            if suggestions:
+                                return SearchResult(
+                                    title=f"🔮 [Suggest API] Expansões em Tempo Real para '{query}'",
+                                    url=f"https://search.brave.com/search?q={quote(query)}",
+                                    description=" | ".join([f"• {s}" for s in suggestions[:8]]),
+                                    source="Brave Suggest API",
+                                    score=3.5 + score_bonus
+                                )
+            except Exception:
+                pass
+            return None
+
         async def fetch_dimension(url: str, params: dict, label: str):
             dim_results = []
             try:
-                async with httpx.AsyncClient(timeout=9.0, follow_redirects=True, headers=headers) as client:
+                async with httpx.AsyncClient(timeout=11.0, follow_redirects=True, headers=headers) as client:
                     resp = await client.get(url, params=params)
                     if resp.status_code != 200:
                         return dim_results
@@ -84,56 +106,159 @@ class BraveSearcher:
                     soup = BeautifulSoup(html_text, "lxml")
 
                     # -----------------------------------------------------------------
-                    # CAMADA 1: Engenharia Reversa do Payload JS SvelteKit (`kit.start`)
+                    # CAMADA 1: Análise Universal do Svelte AST (`kit.start window data`)
                     # -----------------------------------------------------------------
-                    # O servidor Brave injeta todos os dados originais no script inline do SvelteKit antes do DOM renderizar.
-                    try:
-                        for script in soup.find_all("script"):
-                            txt = script.string or ""
-                            if "web:{" in txt or "results:[" in txt or "kit.start(" in txt:
-                                # Varre todas as URLs no script e busca title/description na janela local
-                                urls_found = [m for m in re.finditer(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', txt)]
-                                for u_match in urls_found:
-                                    try:
-                                        u_str = u_match.group(1)
-                                        url_clean = json.loads(u_str)
-                                        if any(skip in url_clean for skip in ["brave.com", "w3.org", "javascript:"]):
-                                            continue
-                                        
-                                        # Janela AST de [-500, +850] caracteres ao redor do URL
-                                        start_p = max(0, u_match.start() - 500)
-                                        end_p = min(len(txt), u_match.end() + 850)
-                                        window = txt[start_p:end_p]
-                                        
-                                        t_match = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                        title_clean = json.loads(t_match.group(1)) if t_match else "N/A"
-                                        
-                                        d_match = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                        desc_clean = json.loads(d_match.group(1)) if d_match else ""
-                                        if desc_clean:
-                                            # Remove tags HTML embutidas (ex: \u003Cstrong>)
-                                            import html as html_lib
-                                            desc_clean = html_lib.unescape(re.sub(r'<[^>]+>', '', desc_clean))
-                                        
-                                        if title_clean != "N/A" and len(title_clean) > 2:
-                                            score_js = 2.8 + score_bonus
-                                            if label == "Brave Tech Goggles":
-                                                score_js += 0.4
-                                            dim_results.append(SearchResult(
-                                                title=title_clean,
-                                                url=url_clean,
-                                                description=desc_clean,
-                                                source=f"{label} [JS Engine]",
-                                                score=score_js
-                                            ))
-                                    except Exception:
+                    for script in soup.find_all("script"):
+                        txt = script.string or ""
+                        if "kit.start(" not in txt and "web:{" not in txt:
+                            continue
+
+                        # 1.1 INFOBOX / KNOWLEDGE GRAPH CLUSTER
+                        for m in re.finditer(r'infobox\s*:\s*\{[^}]*results\s*:\s*\[\s*\{', txt):
+                            window = txt[m.start():min(len(txt), m.start() + 2800)]
+                            t_m = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+                            u_m = re.search(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', window)
+                            d_m = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+                            if t_m:
+                                try:
+                                    i_title = json.loads(t_m.group(1))
+                                    i_url = json.loads(u_m.group(1)) if u_m else f"https://search.brave.com/search?q={quote(query)}"
+                                    i_desc = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_m.group(1)))) if d_m else ""
+                                    
+                                    attrs_str = []
+                                    attrs_match = re.search(r'attributes\s*:\s*\[(.*?)\]\s*,\s*[a-zA-Z0-9_]+:', window)
+                                    if attrs_match:
+                                        raw_pairs = re.findall(r'\[\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*("(?:\\["\\/bfnrt]|[^"\\])*"|null)\s*\]', attrs_match.group(1))
+                                        for k_raw, v_raw in raw_pairs[:6]:
+                                            k_cl = html.unescape(re.sub(r'<[^>]+>', '', json.loads(k_raw)))
+                                            v_cl = html.unescape(re.sub(r'<[^>]+>', '', json.loads(v_raw))) if v_raw != 'null' else ""
+                                            if k_cl and v_cl:
+                                                attrs_str.append(f"{k_cl}: {v_cl}")
+                                    if attrs_str:
+                                        i_desc += "\n📌 Atributos: " + " | ".join(attrs_str)
+                                    dim_results.append(SearchResult(
+                                        title=f"💡 [Knowledge Card] {i_title}",
+                                        url=i_url,
+                                        description=i_desc[:500],
+                                        source=f"{label} [JS AST]",
+                                        score=5.5 + score_bonus
+                                    ))
+                                except Exception:
+                                    pass
+
+                        # 1.2 FAQ & Q&A CLUSTER
+                        for m in re.finditer(r'(?:faq|qa)\s*:\s*\{[^{]*?(?:items|results|question)\s*:', txt):
+                            window = txt[m.start():min(len(txt), m.start() + 3500)]
+                            q_matches = re.findall(r'question\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*answer\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+                            for q_str, a_str in q_matches[:4]:
+                                try:
+                                    q_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(q_str)))
+                                    a_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(a_str)))
+                                    dim_results.append(SearchResult(
+                                        title=f"💬 [FAQ / Direct Answer] {q_clean}",
+                                        url=f"https://search.brave.com/search?q={quote(query)}",
+                                        description=a_clean,
+                                        source=f"{label} [JS AST]",
+                                        score=5.1 + score_bonus
+                                    ))
+                                except Exception:
+                                    continue
+
+                        # 1.3 DISCUSSIONS & REDDIT CLUSTER
+                        for m in re.finditer(r'(?:discussions|similar_pages)\s*:\s*\{[^}]*results\s*:\s*\[', txt):
+                            window = txt[m.start():min(len(txt), m.start() + 4000)]
+                            matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
+                            for t_str, u_str, d_str in matches[:5]:
+                                try:
+                                    t_clean = json.loads(t_str)
+                                    u_clean = json.loads(u_str)
+                                    d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Discussão em comunidade"
+                                    if any(skip in u_clean for skip in ["brave.com", "w3.org"]):
                                         continue
-                                break
-                    except Exception:
-                        pass
+                                    dim_results.append(SearchResult(
+                                        title=f"🗣️ [Discussão Reddit/Fórum] {t_clean}",
+                                        url=u_clean,
+                                        description=d_clean,
+                                        source=f"{label} [JS AST]",
+                                        score=4.6 + score_bonus
+                                    ))
+                                except Exception:
+                                    continue
+
+                        # 1.4 VIDEOS CLUSTER
+                        for m in re.finditer(r'videos\s*:\s*\{[^}]*results\s*:\s*\[', txt):
+                            window = txt[m.start():min(len(txt), m.start() + 3500)]
+                            matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
+                            for t_str, u_str, d_str in matches[:4]:
+                                try:
+                                    t_clean = json.loads(t_str)
+                                    u_clean = json.loads(u_str)
+                                    d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Vídeo relacionado"
+                                    dim_results.append(SearchResult(
+                                        title=f"🎬 [Vídeo] {t_clean}",
+                                        url=u_clean,
+                                        description=d_clean,
+                                        source=f"{label} [JS AST]",
+                                        score=4.2 + score_bonus
+                                    ))
+                                except Exception:
+                                    continue
+
+                        # 1.5 NEWS CLUSTER
+                        for m in re.finditer(r'news\s*:\s*\{[^}]*results\s*:\s*\[', txt):
+                            window = txt[m.start():min(len(txt), m.start() + 3500)]
+                            matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
+                            for t_str, u_str, d_str in matches[:4]:
+                                try:
+                                    t_clean = json.loads(t_str)
+                                    u_clean = json.loads(u_str)
+                                    d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Notícia em tempo real"
+                                    dim_results.append(SearchResult(
+                                        title=f"📰 [Notícia] {t_clean}",
+                                        url=u_clean,
+                                        description=d_clean,
+                                        source=f"{label} [JS AST]",
+                                        score=4.4 + score_bonus
+                                    ))
+                                except Exception:
+                                    continue
+
+                        # 1.6 ORGANIC WEB RESULTS NO JS AST
+                        urls_found = [m for m in re.finditer(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', txt)]
+                        for u_match in urls_found:
+                            try:
+                                u_str = u_match.group(1)
+                                url_clean = json.loads(u_str)
+                                if any(skip in url_clean for skip in ["brave.com", "w3.org", "javascript:"]):
+                                    continue
+
+                                start_p = max(0, u_match.start() - 500)
+                                end_p = min(len(txt), u_match.end() + 850)
+                                window = txt[start_p:end_p]
+
+                                t_match = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+                                title_clean = json.loads(t_match.group(1)) if t_match else "N/A"
+
+                                d_match = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+                                desc_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_match.group(1)))) if d_match else ""
+
+                                if title_clean != "N/A" and len(title_clean) > 2:
+                                    score_js = 2.8 + score_bonus
+                                    if label == "Brave Tech Goggles":
+                                        score_js += 0.5
+                                    dim_results.append(SearchResult(
+                                        title=title_clean,
+                                        url=url_clean,
+                                        description=desc_clean,
+                                        source=f"{label} [JS AST]",
+                                        score=score_js
+                                    ))
+                            except Exception:
+                                continue
+                        break
 
                     # -----------------------------------------------------------------
-                    # CAMADA 2: Extração DOM de Knowledge Cards / Infobox & Q&A Direct Answers
+                    # CAMADA 2: Extração DOM Complementar e Fallback
                     # -----------------------------------------------------------------
                     try:
                         info_box = soup.select_one("#infobox, .infobox, .sidebar-card, .entity-card")
@@ -142,38 +267,17 @@ class BraveSearcher:
                             i_title_txt = i_title.get_text(strip=True) if i_title else query
                             i_desc = info_box.select_one(".desc, .snippet-description, p, .description")
                             i_desc_txt = i_desc.get_text(strip=True) if i_desc else ""
-                            if i_title_txt and i_desc_txt:
+                            if i_title_txt and i_desc_txt and not any(r.url.startswith("https://search.brave.com/search?q=") for r in dim_results if "Knowledge Card" in r.title):
                                 dim_results.append(SearchResult(
                                     title=f"💡 [Knowledge Card] {i_title_txt}",
                                     url=f"https://search.brave.com/search?q={quote(query)}",
                                     description=i_desc_txt[:450],
-                                    source=f"{label} [Infobox]",
+                                    source=f"{label} [DOM Infobox]",
                                     score=5.2 + score_bonus
                                 ))
                     except Exception:
                         pass
 
-                    try:
-                        for qa in soup.select(".qa-block, details.question, .qa-answer, .deep-answers, .discussion-snippet"):
-                            q_el = qa.select_one(".question, summary, h3, h4, .q")
-                            a_el = qa.select_one(".answer, .a, p, .content")
-                            if q_el and a_el:
-                                q_t = q_el.get_text(strip=True)
-                                a_t = a_el.get_text(strip=True)
-                                if len(q_t) > 5 and len(a_t) > 10:
-                                    dim_results.append(SearchResult(
-                                        title=f"💬 [Direct Answer] {q_t}",
-                                        url=f"https://search.brave.com/search?q={quote(q_t)}",
-                                        description=a_t,
-                                        source=f"{label} [Q&A]",
-                                        score=4.9 + score_bonus
-                                    ))
-                    except Exception:
-                        pass
-
-                    # -----------------------------------------------------------------
-                    # CAMADA 3: Extração DOM Complementar (Sitelinks e Expansão de Sugestões)
-                    # -----------------------------------------------------------------
                     for item in soup.select(".snippet:not(.standalone), .result-wrapper, .snippet[data-type='web'], div[data-pos]"):
                         link_el = item.select_one("a[href]")
                         if not link_el or not link_el.get("href"):
@@ -222,7 +326,6 @@ class BraveSearcher:
                             score=score
                         ))
 
-                    # Extração de Sugestões Relacionadas para Agentes
                     try:
                         related_list = []
                         for rq in soup.select(".related-queries a, .deep-queries a, .suggestions a, [class*='related'] a"):
@@ -244,20 +347,24 @@ class BraveSearcher:
                 pass
             return dim_results
 
-        # Execução Quântica Paralela das Camadas (Svelte JS + DOM + Tech Goggles)
         try:
             tasks = [fetch_dimension(u, p, l) for u, p, l in urls_params]
+            tasks.append(fetch_suggest())
             batch_lists = await asyncio.gather(*tasks)
             for b_list in batch_lists:
+                if b_list is None:
+                    continue
+                if isinstance(b_list, SearchResult):
+                    # Suggest result
+                    results_map[b_list.title] = b_list
+                    continue
                 for r in b_list:
                     clean_u = r.url.split("#")[0].rstrip("/")
                     if clean_u in results_map:
-                        # Validação Multi-Camadas e consolidação de Sitelinks
                         results_map[clean_u].score += 0.9
                         if "Sitelinks:" in r.description and not "Sitelinks:" in results_map[clean_u].description:
                             results_map[clean_u].description += "\n" + r.description.split("\n📌 Sitelinks:")[1]
-                        # Preferência por descrição vinda da extração JS por ser mais limpa
-                        if "[JS Engine]" in r.source and len(r.description) > len(results_map[clean_u].description):
+                        if "[JS AST]" in r.source and len(r.description) > len(results_map[clean_u].description):
                             results_map[clean_u].description = r.description
                     else:
                         results_map[clean_u] = r
