@@ -3,9 +3,7 @@
     "RusyaSearchSupreme": {
       "command": "/home/rusya/RusyaSearch/.venv/bin/python",
       "args": [
-        "/home/rusya/RusyaSearch/mcp_server.py",
-        "--transport",
-        "stdio"
+        "/home/rusya/RusyaSearch/mcp_server.py"
       ],
       "env": {
         "PYTHONPATH": "/home/rusya/RusyaSearch"

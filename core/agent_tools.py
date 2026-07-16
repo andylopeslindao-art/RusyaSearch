@@ -56,12 +56,16 @@ class AgentToolsService:
 
         formatted_results = []
         for i, r in enumerate(results, 1):
+            title = r.get("title", "") if isinstance(r, dict) else getattr(r, "title", "")
+            url = r.get("url", "") if isinstance(r, dict) else getattr(r, "url", "")
+            snippet = r.get("description", "") if isinstance(r, dict) else getattr(r, "description", "")
+            source = r.get("source", "Web") if isinstance(r, dict) else getattr(r, "source", "Web")
             formatted_results.append({
                 "rank": i,
-                "title": r.get("title", ""),
-                "url": r.get("url", ""),
-                "snippet": r.get("description", ""),
-                "source": r.get("source", "Web")
+                "title": title,
+                "url": url,
+                "snippet": snippet,
+                "source": source
             })
 
         return {

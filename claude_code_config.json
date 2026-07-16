@@ -9,7 +9,8 @@
       ],
       "env": {
         "PYTHONPATH": "/home/rusya/RusyaSearch"
-      }
+      },
+      "description": "RusyaSearch 3.0 Supreme MCP — Motor primário Brave Supreme v9.0, soluções de código (rusya_code_solve), leitura de documentação (rusya_read_documentation), corretor ortográfico Svelte AST e acesso universal a links web."
     }
   }
 }
