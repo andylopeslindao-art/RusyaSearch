@@ -25,7 +25,7 @@ def _get_local_index():
 
 class AdvancedSearchRequest(BaseModel):
     query: str = Field(..., description="Termo de pesquisa")
-    sources: str = Field("all", description="Categoria: all, web, news, images, videos, pdfs, arxiv, github, stackoverflow, docs, wiki, tech, local")
+    sources: str = Field("all", description="Categoria: all, web, reddit, news, images, videos, pdfs, arxiv, github, stackoverflow, docs, wiki, tech, local")
     max_results: int = Field(25, ge=1, le=100)
     domain: str = Field("", description="Filtro de domínio (site:dominio.com)")
     time_range: str = Field("", description="Filtro por data (d, w, m, y)")
@@ -165,6 +165,58 @@ async def agent_research_post(req: AgentResearchRequest):
     return await AgentToolsService.research(req, local_index=_get_local_index())
 
 
+@router.get("/suggest")
+async def agent_google_suggest(query: str = Query(..., description="Palavra-chave inicial")):
+    return await AgentToolsService.google_suggest(query)
+
+
+@router.get("/scholar")
+async def agent_scholar(query: str = Query(..., description="Tópico de pesquisa científica"), max_results: int = 15):
+    return await AgentToolsService.scholar(query, max_results=max_results)
+
+
+class SmartDorkRequest(BaseModel):
+    intent: str
+    domain: str = ""
+    filetype: str = ""
+    inurl: str = ""
+    max_results: int = 15
+
+
+@router.post("/smart_dork")
+async def agent_smart_dork_post(req: SmartDorkRequest):
+    return await AgentToolsService.smart_dork(req.intent, domain=req.domain, filetype=req.filetype, inurl=req.inurl, max_results=req.max_results)
+
+
+class GoogleDeepResearchRequest(BaseModel):
+    query: str
+    browse_top_n: int = Field(2, ge=1, le=6)
+    max_chars_per_page: int = Field(6000, ge=1000, le=20000)
+
+
+@router.post("/google_deep_research")
+async def agent_google_deep_research_post(req: GoogleDeepResearchRequest):
+    return await AgentToolsService.google_deep_research(req.query, browse_top_n=req.browse_top_n, max_chars_per_page=req.max_chars_per_page)
+
+
+@router.get("/icons")
+async def agent_search_icons(query: str = Query(..., description="Nome do ícone ou marca"), limit: int = 15):
+    return await AgentToolsService.search_icons(query, limit=limit)
+
+
+class UniversalBrowseRequest(BaseModel):
+    url: str = Field(..., description="URL restrita para extração via Matriz Universal")
+    max_chars: int = Field(10000, ge=500, le=50000)
+
+
+@router.post("/universal_browse")
+async def agent_universal_browse_post(req: UniversalBrowseRequest):
+    return await AgentToolsService.universal_browse(req.url, max_chars=req.max_chars)
+
+
 @router.get("/tools_schema")
 async def agent_tools_schema():
     return AgentToolsService.get_agent_tools_schema()
+
+
+

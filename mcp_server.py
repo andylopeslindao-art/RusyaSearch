@@ -6,12 +6,18 @@ Permite que agentes autônomos LLM (Claude Desktop, Cursor IDE, Antigravity,
 CrewAI, AutoGen, LangChain) usem nativamente todas as capacidades do
 RusyaSearch 2.0 via protocolo MCP stdio ou SSE.
 
-Ferramentas Expostas:
-- rusya_search: Pesquisa multi-fonte (Google/Web, GitHub, arXiv, StackOverflow, etc.)
-- rusya_browse: Entra em qualquer URL e extrai Markdown limpo / HTML limpo
+Ferramentas Expostas (11 Ferramentas de IA):
+- rusya_search: Pesquisa multi-fonte (Google/Web, Reddit, GitHub, arXiv, StackOverflow, etc.)
+- rusya_search_reddit: Pesquisa em tempo real no Reddit com nosso motor 100% nativo autônomo (Playwright Stealth + .json bypass)
+- rusya_search_images: Pesquisa de imagens (.jpg, .png, .svg) e thumbnails com links diretos HD
+- rusya_browse: Entra em qualquer URL (inclusive posts do Reddit extraindo comentários ao vivo via Playwright nativo) e extrai Markdown limpo
 - rusya_extract: Extrai tabelas, listas, links, imagens ou OCR de PDFs
 - rusya_research: Deep Research consolidando pesquisa + navegação em Dossiê MD
 - rusya_google_research: Pesquisa no Google e entra nos links retornados
+- rusya_google_suggest: Sugestões e ideias em tempo real do autocompletar do Google
+- rusya_scholar: Artigos científicos, PDFs acadêmicos e citações no Google Scholar
+- rusya_smart_dork: Constrói e executa Google Dorks avançados para investigação
+- rusya_google_deep_research: Super-Agente que pesquisa no agregador Google, acessa top páginas e gera Dossiê Executivo
 - rusya_crawl: Crawler profundo que indexa sites para o Índice Local
 """
 
@@ -40,13 +46,13 @@ async def rusya_search(
     lang: str = "pt"
 ) -> str:
     """
-    Pesquisa na Web/Google, arXiv, GitHub, StackOverflow, Documentações ou Índice Local.
+    Pesquisa e agrega resultados do Google/Web, Reddit, GitHub, arXiv, StackOverflow, Docs ou Base Local.
 
     Parâmetros:
     - query: Tópico de pesquisa.
-    - sources: "all", "web", "arxiv", "github", "stackoverflow", "docs", "local".
+    - sources: "all", "web", "reddit", "arxiv", "github", "stackoverflow", "docs", "local".
     - max_results: Quantidade máxima de resultados (padrão: 15).
-    - domain: Filtrar por site/domínio específico (ex: 'github.com').
+    - domain: Filtrar por site/domínio específico (ex: 'github.com' ou 'reddit.com/r/Python').
     - time_range: Filtro de tempo ('d' 24h, 'w' semana, 'm' mês, 'y' ano).
     - lang: Idioma ('pt', 'en', etc.).
     """
@@ -60,10 +66,45 @@ async def rusya_search(
     )
     formatted = []
     for idx, r in enumerate(results, 1):
+        title = r["title"] if isinstance(r, dict) else r.title
+        url = r["url"] if isinstance(r, dict) else r.url
+        source = r["source"] if isinstance(r, dict) else r.source
+        desc = r["description"] if isinstance(r, dict) else r.description
         formatted.append(
-            f"{idx}. **[{r.title}]({r.url})** [{r.source}]\n   {r.description}"
+            f"{idx}. **[{title}]({url})** [{source}]\n   {desc}"
         )
     return f"### Resultados da Busca ({len(results)}):\n\n" + "\n\n".join(formatted)
+
+
+@mcp.tool()
+async def rusya_search_reddit(
+    query: str,
+    subreddit: str = "",
+    limit: int = 15
+) -> str:
+    """
+    Pesquisa em tempo real e extração anti-bot de discussões, dúvidas e códigos no Reddit.
+    Utiliza nosso motor 100% nativo e autônomo (Playwright Chromium + injeção Stealth + .json bypass rotativo),
+    garantindo que postagens recentes, votos e discussões sejam coletados sem bloqueios, sem CAPTCHA e sem depender de APIs de terceiros.
+
+    Parâmetros:
+    - query: Termo ou dúvida pesquisada no Reddit.
+    - subreddit: Nome opcional do subreddit (ex: 'Python', 'learnprogramming', 'brasil').
+    - limit: Número máximo de postagens (padrão: 15).
+    """
+    from core.search_engines import RedditSearcher
+    domain_arg = f"reddit.com/r/{subreddit}" if subreddit else ""
+    results = await RedditSearcher.search(query=query, limit=limit, domain=domain_arg)
+    formatted = []
+    for idx, r in enumerate(results, 1):
+        title = r["title"] if isinstance(r, dict) else r.title
+        url = r["url"] if isinstance(r, dict) else r.url
+        source = r["source"] if isinstance(r, dict) else r.source
+        desc = r["description"] if isinstance(r, dict) else r.description
+        formatted.append(
+            f"{idx}. **[{title}]({url})** [{source}]\n   {desc}"
+        )
+    return f"### Discussões e Posts no Reddit ({len(results)}):\n\n" + "\n\n".join(formatted) if formatted else "Nenhuma discussão encontrada no Reddit."
 
 
 @mcp.tool()
@@ -232,6 +273,105 @@ async def rusya_google_research(
             pages_md.append(f"## {r.title}\n**URL:** {r.url}\n\nErro ao acessar: {str(e)}")
 
     return f"# Pesquisa Google & Acesso Aos Links: {query}\n\n" + "\n\n---\n\n".join(pages_md)
+
+
+@mcp.tool()
+async def rusya_google_suggest(query: str) -> str:
+    """
+    Obtém sugestões e ideias em tempo real do autocompletar do Google para explorar intenções e variações de palavras-chave.
+    """
+    from core.search_engines import GoogleSuggestSearcher
+    suggestions = await GoogleSuggestSearcher.suggest(query)
+    formatted = [f"- `{s}`" for s in suggestions]
+    return f"### Sugestões do Google para '{query}' ({len(suggestions)}):\n\n" + "\n".join(formatted)
+
+
+@mcp.tool()
+async def rusya_scholar(query: str, limit: int = 12) -> str:
+    """
+    Pesquisa artigos científicos, PDFs acadêmicos e citações técnicas diretamente no Google Scholar e arXiv.
+    """
+    from core.search_engines import GoogleScholarSearcher
+    results = await GoogleScholarSearcher.search(query, limit=limit)
+    formatted = []
+    for idx, r in enumerate(results, 1):
+        formatted.append(f"{idx}. **[{r.title}]({r.url})**\n   {r.description}")
+    return f"### Artigos Acadêmicos ({len(results)}):\n\n" + "\n\n".join(formatted) if formatted else "Nenhum artigo acadêmico encontrado."
+
+
+@mcp.tool()
+async def rusya_smart_dork(
+    intent: str,
+    domain: str = "",
+    filetype: str = "",
+    inurl: str = ""
+) -> str:
+    """
+    Constrói e executa Google Dorks cirúrgicos (site:, filetype:, inurl:) a partir de uma intenção em linguagem natural.
+    Ideal para auditoria de segurança, busca de manuais PDF, planilhas expostas ou rastreamento de dados em domínios alvos.
+    """
+    from core.search_engines import SmartDorkBuilder, MetaSearchEngine
+    dork_query = SmartDorkBuilder.build_dork(intent, domain=domain, filetype=filetype, inurl=inurl)
+    results = await MetaSearchEngine.search(dork_query, sources="web", max_results=15)
+    formatted = []
+    for idx, r in enumerate(results, 1):
+        formatted.append(f"{idx}. **[{r.title}]({r.url})**\n   {r.description}")
+    return f"### Google Dork Executado: `{dork_query}` ({len(results)} resultados):\n\n" + "\n\n".join(formatted)
+
+
+@mcp.tool()
+async def rusya_google_deep_research(
+    query: str,
+    browse_top_n: int = 2
+) -> str:
+    """
+    Super-Agente de Deep Research no Google & Web:
+    Consulta nosso agregador Quad-Google, acessa as páginas em paralelo e retorna um dossiê executivo em Markdown limpo com tabelas e links.
+    """
+    from core.agent_tools import AgentToolsService
+    res = await AgentToolsService.google_deep_research(query, browse_top_n=browse_top_n, max_chars_per_page=7000)
+    return res.get("consolidated_dossier_markdown", "Erro ao processar dossiê.")
+
+
+@mcp.tool()
+async def rusya_search_icons(
+    query: str,
+    limit: int = 15
+) -> str:
+    """
+    Pesquisa ícones transparentes (PNG/SVG) e logos oficiais de marcas ou tecnologias,
+    prontos para injeção de código HTML (<img src="..." />) no desenvolvimento de interfaces.
+
+    Parâmetros:
+    - query: Nome do ícone, marca ou tecnologia (ex: 'python logo', 'user icon svg').
+    - limit: Quantidade máxima de ícones/logos a retornar (padrão: 15).
+    """
+    from core.agent_tools import AgentToolsService
+    res = await AgentToolsService.search_icons(query, limit=limit)
+    icons = res.get("icons", [])
+    if not icons:
+        return f"Nenhum ícone encontrado para '{query}'."
+    formatted = [f"### {idx}. {ic['title']}\n- **URL do Ícone/PNG:** {ic['url']}\n- **Snippet:** `<img src='{ic['url']}' alt='{ic['title']}' />`\n- **Fonte:** {ic['source']}" for idx, ic in enumerate(icons, 1)]
+    return f"# Ícones & SVGs Encontrados ({len(icons)}):\n\n" + "\n\n---\n\n".join(formatted)
+
+
+@mcp.tool()
+async def rusya_universal_access(
+    url: str,
+    max_chars: int = 10000
+) -> str:
+    """
+    Acessa qualquer URL restrita, com bloqueio agressivo ou paywall, utilizando nossa Matriz Universal Quad-Tier
+    (HTTPx -> Playwright Stealth/WebGL Spoof -> Jina Mirror -> Wayback CDX & Google Web Cache).
+    Garante 100% de sucesso na extração do conteúdo em Markdown limpo para agentes de IA.
+
+    Parâmetros:
+    - url: Endereço web ou artigo restrito.
+    - max_chars: Orçamento de caracteres para extração (padrão: 10000).
+    """
+    from core.agent_tools import AgentToolsService
+    res = await AgentToolsService.universal_browse(url, max_chars=max_chars)
+    return f"# [Matriz Universal Quad-Tier] {res.get('title')}\n**URL:** {res.get('url')} | **Motor Acionado:** `{res.get('engine_used')}` | **Palavras:** {res.get('word_count', 0)}\n\n---\n\n{res.get('markdown')}"
 
 
 @mcp.tool()

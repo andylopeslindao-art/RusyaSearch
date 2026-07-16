@@ -14,6 +14,7 @@ from .search_engines import (
 )
 from .browser import AgentBrowser, BrowseOptions, BrowserAction
 from .agent_tools import AgentToolsService
+from .knowledge_graph import KnowledgeGraphEngine
 
 __all__ = [
     "Crawler",
@@ -34,4 +35,5 @@ __all__ = [
     "BrowseOptions",
     "BrowserAction",
     "AgentToolsService",
+    "KnowledgeGraphEngine",
 ]

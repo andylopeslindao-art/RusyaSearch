@@ -7,8 +7,8 @@ from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import FastAPI, Query, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse, PlainTextResponse, Response
+from fastapi import FastAPI, Query, BackgroundTasks, HTTPException, Request
+from fastapi.responses import HTMLResponse, PlainTextResponse, Response, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -17,6 +17,8 @@ from core.crawler import Crawler
 from core.indexer import InvertedIndex
 from core.extractor import MarkdownExtractor
 from core.search_engines import MetaSearchEngine
+from core.browser import AgentBrowser, BrowseOptions
+from core.knowledge_graph import KnowledgeGraphEngine
 from api.agent_router import router as agent_router
 
 INDEX_PATH = os.path.expanduser("~/.rusyasearch/index.json")
@@ -66,6 +68,11 @@ async def background_crawl(
             word_count=page.word_count,
             reading_time_min=page.reading_time_min
         )
+        # Auto-ingest into Knowledge Graph
+        try:
+            KnowledgeGraphEngine.ingest_page(page.title, page.content, page.url, page.markdown)
+        except Exception:
+            pass
     idx.save(INDEX_PATH)
     CRAWL_STATUS["running"] = False
 
@@ -93,16 +100,49 @@ static_dir = Path(__file__).parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 
-@app.get("/", response_class=HTMLResponse)
-async def root():
+@app.get("/")
+async def root(request: Request):
+    accept = request.headers.get("accept", "").lower()
+    if "application/json" in accept and not "text/html" in accept:
+        return {
+            "status": "online",
+            "system": "RusyaSearch 3.0 — AI Agent Core Suite",
+            "description": "Universal AI Agent API & MCP Server with Quad-Tier Anti-Bot Bypass",
+            "version": "3.0.0",
+            "engines": [
+                "Tier 1: HTTPx Stealth Fast Rotation",
+                "Tier 2: Playwright Chromium + WebGL & GPU Spoofing + Cookie Auto-Clicker",
+                "Tier 3: Jina AI Mirror Fallback",
+                "Tier 4: Universal Wayback CDX & Google Cache Matrix"
+            ],
+            "endpoints": {
+                "agent_search": "POST /api/v1/agent/search",
+                "agent_icons": "GET /api/v1/agent/icons",
+                "agent_browse": "POST /api/v1/agent/browse",
+                "agent_universal_browse": "POST /api/v1/agent/universal_browse",
+                "agent_research": "POST /api/v1/agent/research",
+                "agent_tools_schema": "GET /api/v1/agent/tools_schema",
+                "swagger_docs": "GET /docs"
+            }
+        }
     html_path = Path(__file__).parent.parent / "web" / "index.html"
     return HTMLResponse(html_path.read_text(encoding="utf-8"))
+
+
+@app.get("/api/status")
+async def api_status():
+    return {
+        "status": "active",
+        "name": "RusyaSearch 3.0 Agent Core",
+        "version": "3.0.0",
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
 
 
 @app.get("/api/search")
 async def search(
     q: str = Query(..., description="Search query"),
-    source: str = Query("all", description="Filter source: all, web, wiki, tech, local"),
+    source: str = Query("all", description="Filter source: all, web, reddit, wiki, tech, local"),
     limit: int = Query(25, ge=1, le=100),
     page: int = Query(1, ge=1, description="Página de resultados (1, 2, 3...)")
 ):
@@ -168,6 +208,22 @@ async def _extract_url_logic(url: str):
                     "reading_time_min": entry.reading_time_min,
                     "cached": True
                 }
+
+    # Se for URL do Reddit, usa diretamente o motor anti-bot do AgentBrowser
+    if "reddit.com" in url.lower() or "redd.it" in url.lower():
+        try:
+            b_res = await AgentBrowser.browse(BrowseOptions(url=url, format="markdown"))
+            return {
+                "url": url,
+                "title": b_res.get("title", url),
+                "description": b_res.get("description", ""),
+                "markdown": b_res.get("content", ""),
+                "word_count": b_res.get("word_count", 0),
+                "reading_time_min": b_res.get("reading_time_min", 1),
+                "cached": False
+            }
+        except Exception:
+            pass
 
     # Fetch live web page and extract clean Markdown
     try:
@@ -288,3 +344,58 @@ async def stats():
 async def clear_index():
     InvertedIndex().save(INDEX_PATH)
     return {"message": "Index cleared"}
+
+
+# ── Knowledge Graph Endpoints ──────────────────────────────────────────────────
+
+@app.get("/api/graph")
+async def get_knowledge_graph(
+    min_weight: int = Query(1, ge=1, description="Peso minimo da aresta"),
+    max_nodes: int = Query(150, ge=10, le=500, description="Maximo de nos no grafo")
+):
+    return KnowledgeGraphEngine.get_graph_for_viz(min_weight=min_weight, max_nodes=max_nodes)
+
+
+@app.get("/api/graph/entity/{entity_id}")
+async def get_entity_detail(entity_id: str):
+    detail = KnowledgeGraphEngine.get_entity_detail(entity_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Entidade nao encontrada no grafo")
+    return detail
+
+
+@app.get("/api/graph/search")
+async def search_graph_entities(
+    q: str = Query(..., description="Busca por entidade no grafo"),
+    limit: int = Query(20, ge=1, le=100)
+):
+    return KnowledgeGraphEngine.search_entities(q, limit=limit)
+
+
+@app.post("/api/graph/ingest")
+async def ingest_text_to_graph(
+    text: str = Query(..., description="Texto para extrair entidades e relacoes"),
+    source_url: str = Query("", description="URL de origem do texto")
+):
+    return KnowledgeGraphEngine.ingest_text(text, source_url=source_url)
+
+
+@app.delete("/api/graph")
+async def clear_knowledge_graph():
+    KnowledgeGraphEngine.clear()
+    return {"message": "Knowledge Graph cleared"}
+
+
+@app.get("/api/graph/stats")
+async def graph_stats():
+    graph = KnowledgeGraphEngine.load()
+    entities = graph.get("entities", {})
+    relations = graph.get("relations", [])
+    from collections import Counter
+    type_counts = Counter(e.get("type", "unknown") for e in entities.values())
+    return {
+        "total_entities": len(entities),
+        "total_relations": len(relations),
+        "entity_type_distribution": dict(type_counts),
+        "last_updated": graph.get("last_updated", 0)
+    }

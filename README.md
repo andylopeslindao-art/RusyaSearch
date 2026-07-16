@@ -1,57 +1,44 @@
-# RusyaSearch 2.0 🌐 — AI Agent Search & Stealth Browsing Suite
+# RusyaSearch 3.0 — Motor de Busca e Navegação para Agentes de IA
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg)](https://fastapi.tiangolo.com/)
 [![MCP Ready](https://img.shields.io/badge/MCP-Server%20Enabled-8A2BE2.svg)](https://modelcontextprotocol.io/)
-[![Playwright Stealth](https://img.shields.io/badge/Playwright-Tri--Hybrid%20Engine-FF6F00.svg)](https://playwright.dev/)
+[![No API Keys](https://img.shields.io/badge/100%25%20Free-No%20API%20Keys-success.svg)](https://github.com/rusya/RusyaSearch)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**RusyaSearch 2.0** é uma suíte open-source de busca web, navegação anti-bot e extração de Markdown otimizada especificamente para **Agentes de IA autônomos** (Claude Code, Hermes Agent, Cursor, Aider, OpenCode) e desenvolvedores.
+**RusyaSearch 3.0** é uma suíte open-source de meta-busca, navegação anti-bot e extração estruturada de dados em Markdown, projetada **exclusivamente para Agentes de IA Autônomos** (Claude Code, Hermes Agent, Cursor, Aider, LangChain, OpenCode) e engenharia de software autônoma.
 
-> **Por que o RusyaSearch existe?**  
-> A maioria dos agentes de IA falha ao tentar buscar na internet por três motivos:
-> 1. Requisições HTTP normais caem em **CAPTCHAs e bloqueios Cloudflare/Turnstile**.
-> 2. Páginas HTML pesadas gastam todo o **orçamento de tokens** do modelo.
-> 3. Buscadores tradicionais não entregam **links diretos de imagens (`.png`, `.jpg`, `.svg`)** quando o agente está construindo uma interface web.
->
-> O RusyaSearch resolve tudo isso rodando localmente com uma API REST limpa e um **servidor MCP (Model Context Protocol)** nativo.
+O projeto foi construído sob um princípio fundamental: **100% Grátis, sem necessidade de chaves de API ou serviços pagos**. Todo o processamento é feito localmente através de engenharia reversa, análise de pacotes e extração inteligente de dados.
 
 ---
 
-## 🔥 Principais Funcionalidades
+## Principais Destaques e Arquitetura
 
-### 1. Motor Tri-Híbrido de Navegação Anti-Bot
-O `AgentBrowser` não depende de um único método. Ele usa uma estratégia em 3 camadas:
-- **Tier 1 (HTTPx Rápido):** Navegação assíncrona veloz com rotação de User-Agents modernos.
-- **Tier 2 (Playwright Chromium Stealth):** Headless browser real que executa JavaScript e burla proteções anti-bot, Cloudflare e Turnstile.
-- **Tier 3 (Jina Mirror Fallback):** Espelho de leitura anti-paywall para garantir 100% de taxa de sucesso na extração.
+### 1. Foco 100% em API & Agentes (Zero Bloat)
+Removemos interfaces web visuais pesadas e código voltado para humanos. A raiz (`/`) entrega diretamente o **Console de Status e Especificação OpenAPI** (<15 KB), otimizada para chamadas de ferramentas por IA (`Function Calling`).
 
-### 2. Busca Web & Imagens Diretas via Brave Search
-- **Web Search sem CAPTCHA:** Resultados orgânicos limpos combinando **Brave Search** + **DuckDuckGo SafeSearch OFF**.
-- **Imagens Prontas para `<img src="...">`:** O `ImageSearcher` decodifica a CDN do Brave em tempo real e retorna a **URL direta do arquivo (`.png`, `.jpg`, `.webp`, `.svg`)**, resolução e thumbnail. Agentes IA podem inserir imagens reais no código HTML/CSS na hora.
+### 2. Motor de Busca Avançado e Sem Chave (`BraveSearcher v6.0`)
+Desenvolvemos uma arquitetura que extrai dados do ecossistema Brave Search sem precisar de chaves pagas (`BRAVE_API_KEY`):
+- **Análise do Payload SvelteKit (Engenharia Reversa de AST):** Em vez de raspar elementos HTML frágeis, o motor inspeciona diretamente o objeto de inicialização do SvelteKit (`kit.start data window`) no JavaScript das respostas. Isso permite capturar títulos originais, URLs limpas e descrições sem ofuscação visual.
+- **Busca Simultânea com Filtros para Desenvolvedores (Brave Goggles):** Dispara requisições paralelas combinando a busca orgânica com o filtro `tech.goggles`. Esse filtro elimina fazendas de conteúdo, agregadores de SEO e spam, priorizando repositórios no GitHub, discussões do Stack Overflow, artigos científicos (ArXiv) e documentação oficial.
+- **Extração de Painéis e Perguntas Frequentes:** Identifica painéis explicativos de entidades (`Knowledge Cards`) e perguntas com respostas diretas (`Q&A`), entregando resumos instantâneos para o agente sem requisições adicionais.
+- **Pontuação Multi-Camadas:** Artigos corroborados tanto na busca geral quanto no filtro técnico recebem bônus automático de pontuação, garantindo que fontes técnicas confiáveis fiquem no topo.
 
-### 3. Extração de Markdown Limpo (.md)
-Converte qualquer página da internet em Markdown sinteticamente limpo, removendo anúncios, scripts, modais de cookies e navegação redundante para economizar tokens do LLM.
+### 3. Sistema Multi-Camadas de Navegação Anti-Bot (`AgentBrowser`)
+Para extrair conteúdo limpo em Markdown de URLs que possuem proteções complexas contra robôs ou paywalls, o sistema utiliza uma abordagem em 4 níveis de fallback automático:
+- **Nível 1 (HTTPx Assíncrono):** Requisições rápidas com rotação realista de cabeçalhos Chrome/Firefox no Linux.
+- **Nível 2 (Playwright + Spoofing de GPU + Auto-Clique em Cookies):** Navegador headless que simula drivers OpenGL, rola a página naturalmente e aceita modais invasivos de cookies (`Aceitar tudo`, `GDPR Consent`) de forma automática.
+- **Nível 3 (Espelhamento Jina AI):** Conversão instantânea de páginas restritas ou pesadas em Markdown limpo via `r.jina.ai`.
+- **Nível 4 (Histórico Wayback & Cache Web):** Caso o site esteja fora do ar ou bloqueado por IP, o sistema consulta automaticamente o snapshot mais recente na API da Wayback Machine e no cache da Web.
 
-### 4. Suporte Completo a Paginação & Filtros
-- Paginação interativa na Interface Web (`Página 1`, `2`, `3...`).
-- Suporte a filtros por domínio (`site:github.com`), intervalo de datas (`d`, `w`, `m`, `y`) e categoria (Web, Notícias, PDFs, ArXiv, GitHub, StackOverflow).
+### 4. Pesquisa Especializada de Ícones e SVGs (`/icons`)
+Busca ícones transparentes (PNG e SVG) em repositórios abertos e retorna o código exato (`<img src="..." alt="..." />`) para que agentes de engenharia front-end possam injetar recursos gráficos diretamente em aplicações React, Vue ou HTML.
 
 ---
 
-## 🔌 Integração via MCP (Model Context Protocol)
+## Integração via MCP (Model Context Protocol)
 
-O projeto inclui o servidor `mcp_server.py` pronto para ser plugado no **Claude Code**, **Hermes Agent** ou **Cursor**.
-
-### Configuração no Hermes Agent (`~/.hermes/config.yaml`)
-```yaml
-mcp_servers:
-  rusyasearch:
-    command: "/caminho/para/RusyaSearch/.venv/bin/python3"
-    args: ["/caminho/para/RusyaSearch/mcp_server.py"]
-    timeout: 180
-    connect_timeout: 30
-```
+O servidor nativo (`mcp_server.py`) expõe todas as funcionalidades da v3.0 para rodar via terminal (`stdio`) diretamente no **Cursor**, **Claude Code** ou **Hermes Agent**.
 
 ### Configuração no Claude Code / Claude Desktop (`claude_desktop_config.json`)
 ```json
@@ -65,77 +52,96 @@ mcp_servers:
 }
 ```
 
-### Ferramentas MCP Expostas
-- `rusya_search(query, sources, max_results, page)` — Busca web meta-search.
-- `rusya_search_images(query, limit)` — Links diretos de arquivos de imagem (`.png`, `.jpg`).
-- `rusya_browse(url, format, js_render)` — Acessa URLs com bypass anti-bot e devolve Markdown.
-- `rusya_extract(url, mode)` — Extrai conteúdo estruturado/tabelas em MD.
-- `rusya_research(topic, depth)` — Relatório de pesquisa profunda automatizada.
-- `rusya_crawl(start_url, max_pages)` — Indexador recursivo de sites para busca local.
+### Lista Completa de Ferramentas MCP
+| Ferramenta MCP | Descrição |
+| :--- | :--- |
+| `rusya_search(query, sources, max_results)` | Pesquisa integrada em múltiplos motores sem chave de API (`web`, `brave`, `tech`, `icons`, `scholar`, `github`). |
+| `rusya_search_icons(query, limit)` | Busca ícones transparentes (PNG/SVG) prontos para uso em código front-end. |
+| `rusya_universal_access(url, max_chars)` | Acessa e converte qualquer URL restrita em Markdown usando o sistema multi-camadas de fallback. |
+| `rusya_browse(url, max_chars)` | Acessa uma URL direta e devolve o conteúdo em Markdown estruturado. |
+| `rusya_research(query, browse_top_n)` | Realiza meta-busca no tema, entra nas Top N páginas na íntegra e compila um relatório técnico completo. |
+| `rusya_google_deep_research(query, browse_top_n)` | Pesquisa aprofundada focada no ecossistema Web com consolidação em tabelas e referências. |
+| `rusya_google_suggest(query)` | Coleta sugestões de autocompletar em tempo real para expansão de palavras-chave. |
+| `rusya_scholar(query, limit)` | Busca artigos científicos e resumos de PDFs no Google Scholar e arXiv. |
+| `rusya_smart_dork(intent, domain, filetype)` | Converte linguagem natural em operadores avançados de pesquisa (Google Dorks). |
+| `rusya_extract(url, target)` | Extração pontual de tabelas, listas, links ou texto de páginas visuais. |
+| `rusya_crawl(seed_url, max_pages)` | Indexação local de páginas para consultas e análises offline. |
 
 ---
 
-## 🚀 Instalação e Uso Local
+## Instalação e Início Rápido
 
-### 1. Clonar e Instalar Dependências
+### 1. Instalação
 ```bash
-git clone https://github.com/SEU-USUARIO/RusyaSearch.git
+git clone https://github.com/rusya/RusyaSearch.git
 cd RusyaSearch
 
-# Criar ambiente virtual
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Instalar dependências e binários do Playwright
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 2. Iniciar o Servidor
+### 2. Gerenciamento do Servidor
+Utilize o script `start.sh` para gerenciar o serviço:
 ```bash
-./start.sh
-```
-Ou manualmente via Uvicorn (escutando em toda a rede Wi-Fi local `0.0.0.0:8080`):
-```bash
-.venv/bin/uvicorn api.main:app --host 0.0.0.0 --port 8080
-```
+# Iniciar em segundo plano
+./start.sh start
 
-- **Painel Web:** Abra `http://localhost:8080` (ou IP da sua máquina na rede local) no navegador.
-- **Documentação Interativa (Swagger):** Acesse `http://localhost:8080/docs`.
+# Verificar status e portas ativas
+./start.sh status
+
+# Executar suíte de testes de verificação
+.venv/bin/python test_v3.py
+```
+O servidor estará disponível na porta `8080` para toda a rede local (Wi-Fi/LAN):
+- **Console de Status e Documentação:** `http://localhost:8080`
+- **Schemas OpenAPI para Agentes:** `http://localhost:8080/api/v1/agent/tools_schema`
+- **Swagger UI:** `http://localhost:8080/docs`
 
 ---
 
-## 🛠️ Exemplos de API REST
+## Exemplos de Consumo na API REST (`/api/v1/agent`)
 
+### 1. Python SDK / LangChain / CrewAI
+```python
+import httpx
+
+class RusyaSearchClient:
+    BASE_URL = "http://localhost:8080/api/v1/agent"
+
+    @classmethod
+    def search(cls, query: str, sources: str = "all", max_results: int = 5):
+        payload = {"query": query, "sources": sources, "max_results": max_results}
+        return httpx.post(f"{cls.BASE_URL}/search", json=payload).json()
+
+    @classmethod
+    def search_icons(cls, query: str, limit: int = 15):
+        return httpx.get(f"{cls.BASE_URL}/icons", params={"query": query, "limit": limit}).json()
+
+    @classmethod
+    def browse(cls, url: str, max_chars: int = 12000):
+        return httpx.post(f"{cls.BASE_URL}/universal_browse", json={"url": url, "max_chars": max_chars}).json()
+```
+
+### 2. cURL (Terminal / Shell Scripts)
 ```bash
-# 1. Pesquisa Web (Página 1)
-curl -G "http://localhost:8080/api/v1/agent/search" \
-  --data-urlencode "query=inteligencia artificial" \
-  --data-urlencode "sources=web"
-
-# 2. Pesquisar Imagens Diretas (.png/.jpg)
-curl -G "http://localhost:8080/api/v1/agent/search" \
-  --data-urlencode "query=python logo transparent png" \
-  --data-urlencode "sources=images"
-
-# 3. Navegar em Site Protegido e Receber Markdown
-curl -X POST "http://localhost:8080/api/v1/agent/browse" \
+# 1. Pesquisa técnica com filtros para desenvolvedores
+curl -X POST "http://localhost:8080/api/v1/agent/search" \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://pt.wikipedia.org/wiki/Python", "render_js": true}'
+  -d '{"query": "asyncio error handling", "sources": "tech", "max_results": 5}'
+
+# 2. Pesquisa de ícones transparentes
+curl -G "http://localhost:8080/api/v1/agent/icons" \
+  --data-urlencode "query=python logo transparent"
+
+# 3. Extração e conversão de URL em Markdown limpo
+curl -X POST "http://localhost:8080/api/v1/agent/universal_browse" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://pt.wikipedia.org/wiki/Python", "max_chars": 8000}'
 ```
 
 ---
 
-## ⚠️ Aviso Legal, Status Experimental & Bugs
-
-> **Sejamos sinceros:** O **RusyaSearch** é um projeto experimental em constante evolução construído por desenvolvedores para desenvolvedores.
-
-- **Pode conter bugs ou quebras pontuais:** Como a internet muda constantemente, scrapers e seletores CSS podem quebrar quando sites atualizam seus layouts ou proteções anti-bot.
-- **Uso Responsável:** Esta ferramenta foi criada para fins educacionais, automação de fluxos de agentes de IA e pesquisa em fontes acessíveis publicamente. Respeite os termos de serviço dos sites visitados e arquivos `robots.txt` quando aplicável.
-- **Contribuições & Issues:** Encontrou um bug ou tem uma melhoria? PRs e relatórios de issues no GitHub são extremamente bem-vindos!
-
----
-
-## 📄 Licença
-
+## Licença
 Distribuído sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.

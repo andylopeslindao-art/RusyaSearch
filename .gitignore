@@ -26,3 +26,6 @@ index.json
 # Temporary downloads & artifacts
 downloads/
 temp/
+scratch/
+*.pid
+.rusyasearch.pid

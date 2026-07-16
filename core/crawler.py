@@ -34,6 +34,7 @@ class Crawler:
     - Descoberta via sitemap.xml
     - Verificação de robots.txt
     - Deduplicação automática por URL e fingerprint
+    - Indexação incremental em tempo real (salva a cada batch)
     """
     def __init__(
         self,
@@ -97,32 +98,8 @@ class Crawler:
                 return False
         return True
 
-    async def fetch_page(self, url: str, depth: int = 0) -> Page | None:
-        try:
-            async with httpx.AsyncClient(
-                timeout=self.timeout,
-                follow_redirects=True,
-                headers={"User-Agent": "Mozilla/5.0 (compatible; RusyaSearch/2.0; +https://github.com/rusya)"}
-            ) as client:
-                resp = await client.get(url)
-                resp.raise_for_status()
-
-                extracted = MarkdownExtractor.extract(resp.text, url=url)
-
-                return Page(
-                    url=url,
-                    title=extracted.title,
-                    content=extracted.raw_text,
-                    description=extracted.description,
-                    markdown=extracted.markdown,
-                    word_count=extracted.word_count,
-                    reading_time_min=extracted.reading_time_min,
-                    depth=depth
-                )
-        except Exception:
-            return None
-
-    def extract_links(self, url: str, soup: BeautifulSoup) -> list[str]:
+    @staticmethod
+    def _extract_links(url: str, soup: BeautifulSoup) -> list[str]:
         links = []
         base_netloc = urlparse(url).netloc
         for a in soup.find_all("a", href=True):
@@ -137,6 +114,39 @@ class Crawler:
                     links.append(clean_url)
         return links
 
+    async def _fetch_and_extract(self, url: str, depth: int = 0) -> tuple[Page | None, list[str]]:
+        """Fetches URL once, extracts both content AND links in a single request."""
+        try:
+            async with httpx.AsyncClient(
+                timeout=self.timeout,
+                follow_redirects=True,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; RusyaSearch/2.0; +https://github.com/rusya)"}
+            ) as client:
+                resp = await client.get(url)
+                resp.raise_for_status()
+
+                html = resp.text
+                extracted = MarkdownExtractor.extract(html, url=url)
+
+                new_links = []
+                if depth < self.max_depth:
+                    soup = BeautifulSoup(html, "lxml")
+                    new_links = self._extract_links(url, soup)
+
+                page = Page(
+                    url=url,
+                    title=extracted.title,
+                    content=extracted.raw_text,
+                    description=extracted.description,
+                    markdown=extracted.markdown,
+                    word_count=extracted.word_count,
+                    reading_time_min=extracted.reading_time_min,
+                    depth=depth
+                )
+                return page, new_links
+        except Exception:
+            return None, []
+
     async def crawl(self, seed_url: str, callback=None) -> list[Page]:
         self.visited.clear()
         self.pages.clear()
@@ -145,48 +155,42 @@ class Crawler:
         if self.respect_robots:
             await self._parse_robots_txt(seed_url)
 
-        # Queue items: tuple (url, depth)
         queue = [(seed_url, 0)]
+        discovered: set[str] = {seed_url}
 
-        # Check sitemap first
         sitemap_urls = await self._parse_sitemap(seed_url)
         for sm_url in sitemap_urls:
-            queue.append((sm_url, 1))
+            if sm_url not in discovered:
+                queue.append((sm_url, 1))
+                discovered.add(sm_url)
 
         sem = asyncio.Semaphore(self.concurrency)
 
         while queue and len(self.visited) < self.max_pages:
-            batch = queue[:self.concurrency]
-            queue = queue[self.concurrency:]
+            batch = []
+            while queue and len(batch) < self.concurrency:
+                item = queue.pop(0)
+                url, depth = item
+                if url in self.visited or depth > self.max_depth or not self._is_allowed(url):
+                    continue
+                self.visited.add(url)
+                batch.append((url, depth))
+
+            if not batch:
+                break
 
             async def process_item(item):
                 url, depth = item
-                if url in self.visited or depth > self.max_depth or not self._is_allowed(url):
-                    return
-                self.visited.add(url)
-
                 async with sem:
-                    page = await self.fetch_page(url, depth=depth)
+                    page, new_links = await self._fetch_and_extract(url, depth)
                     if page:
                         self.pages.append(page)
                         if callback:
                             callback(url, len(self.pages))
-
-                        if depth < self.max_depth:
-                            try:
-                                async with httpx.AsyncClient(
-                                    timeout=self.timeout,
-                                    follow_redirects=True,
-                                    headers={"User-Agent": "RusyaSearch/2.0"}
-                                ) as client:
-                                    resp = await client.get(url)
-                                    soup = BeautifulSoup(resp.text, "lxml")
-                                    new_links = self.extract_links(url, soup)
-                                    for l in new_links:
-                                        if l not in self.visited:
-                                            queue.append((l, depth + 1))
-                            except Exception:
-                                pass
+                        for l in new_links:
+                            if l not in discovered and l not in self.visited:
+                                queue.append((l, depth + 1))
+                                discovered.add(l)
                 if self.delay:
                     await asyncio.sleep(self.delay)
 

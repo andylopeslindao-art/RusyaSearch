@@ -3,1423 +3,510 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RusyaSearch 2.0 — Motor de Busca & Extrator Markdown</title>
+    <title>RusyaSearch 3.0 — AI Agent Core API & MCP Hub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #08090d;
-            --bg-secondary: #10121a;
-            --bg-glass: rgba(18, 21, 33, 0.75);
-            --bg-card: #151824;
-            --bg-card-hover: #1c2030;
-            --border: rgba(255, 255, 255, 0.08);
-            --border-highlight: rgba(110, 86, 207, 0.45);
-            --text-main: #f3f4f6;
-            --text-muted: #9ca3af;
-            --text-dim: #6b7280;
-            --accent-primary: #7c3aed;
-            --accent-gradient: linear-gradient(135deg, #a855f7, #6366f1, #3b82f6);
-            --accent-cyan: #06b6d4;
-            --accent-emerald: #10b981;
-            --shadow-glow: 0 0 35px rgba(124, 58, 237, 0.22);
+            --bg-color: #0b0f19;
+            --surface: #131b2e;
+            --surface-card: #19233c;
+            --accent: #00f2fe;
+            --accent-glow: rgba(0, 242, 254, 0.15);
+            --secondary: #4facfe;
+            --text-primary: #f0f4f8;
+            --text-secondary: #94a3b8;
+            --border: #233154;
+            --success: #10b981;
+            --warning: #f59e0b;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-main);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
             overflow-x: hidden;
             background-image: 
-                radial-gradient(circle at 15% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-                radial-gradient(circle at 85% 80%, rgba(168, 85, 247, 0.1) 0%, transparent 45%);
-            background-attachment: fixed;
+                radial-gradient(circle at 15% 20%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(79, 172, 254, 0.08) 0%, transparent 40%);
         }
-
-        /* NAVBAR HEADER */
-        .top-nav {
-            position: fixed;
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(19, 27, 46, 0.7);
+            backdrop-filter: blur(12px);
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
-            height: 64px;
-            background: var(--bg-glass);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border);
+            z-index: 100;
+        }
+        .logo {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 0 2rem;
-            z-index: 50;
-        }
-
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .brand-logo {
-            font-size: 1.6rem;
-            font-weight: 800;
-            background: var(--accent-gradient);
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            letter-spacing: -0.5px;
         }
-
-        .brand-badge {
-            background: rgba(124, 58, 237, 0.18);
-            border: 1px solid rgba(168, 85, 247, 0.35);
-            color: #d8b4fe;
-            font-size: 0.72rem;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 20px;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-        }
-
-        .nav-actions {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .btn-nav {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 8px 15px;
-            border-radius: 10px;
-            font-size: 0.88rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-nav:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-        }
-
-        .btn-nav.primary {
-            background: var(--accent-gradient);
-            border: none;
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.35);
-        }
-
-        .btn-nav.primary:hover {
-            opacity: 0.93;
-            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
-        }
-
-        /* HERO / HOME PAGE */
-        .home-page {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 80px 2rem 40px;
-            transition: opacity 0.25s ease;
-        }
-
-        .hero-title {
-            font-size: clamp(2.8rem, 6vw, 4.5rem);
-            font-weight: 800;
-            text-align: center;
-            line-height: 1.1;
-            margin-bottom: 1rem;
-            background: var(--accent-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -1.5px;
-        }
-
-        .hero-subtitle {
-            font-size: clamp(1rem, 2vw, 1.2rem);
-            color: var(--text-muted);
-            text-align: center;
-            max-width: 650px;
-            margin-bottom: 2.5rem;
-            line-height: 1.6;
-        }
-
-        .hero-subtitle span {
-            color: #d8b4fe;
+        .badge {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
             font-weight: 600;
         }
-
-        /* SEARCH BAR MAIN */
-        .search-wrapper {
-            width: 100%;
-            max-width: 720px;
-            position: relative;
-        }
-
-        .search-bar {
+        .status-pill {
             display: flex;
             align-items: center;
-            background: var(--bg-card);
-            border: 1.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            padding: 8px 12px 8px 24px;
-            box-shadow: var(--shadow-glow), 0 10px 30px rgba(0, 0, 0, 0.5);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .search-bar:focus-within {
-            border-color: #8b5cf6;
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15), var(--shadow-glow);
-            transform: translateY(-2px);
-        }
-
-        .search-input {
-            flex: 1;
-            background: none;
-            border: none;
-            font-size: 1.15rem;
-            color: var(--text-main);
-            outline: none;
-            font-family: inherit;
-        }
-
-        .search-input::placeholder {
-            color: var(--text-dim);
-        }
-
-        .btn-search {
-            background: var(--accent-gradient);
-            border: none;
-            color: white;
-            font-weight: 600;
-            font-size: 1rem;
-            padding: 14px 28px;
-            border-radius: 14px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn-search:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-        }
-
-        /* FEATURE CHIPS */
-        .features-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            justify-content: center;
-            margin-top: 2.5rem;
-            max-width: 780px;
-        }
-
-        .feature-chip {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--border);
-            padding: 10px 18px;
-            border-radius: 12px;
-            font-size: 0.88rem;
-            color: var(--text-muted);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .feature-chip:hover {
-            background: rgba(139, 92, 246, 0.12);
-            border-color: rgba(139, 92, 246, 0.4);
-            color: #e9d5ff;
-            transform: translateY(-2px);
-        }
-
-        /* RESULTS VIEW */
-        .results-page {
-            display: none;
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 90px 20px 60px;
-        }
-
-        .results-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 24px;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 16px;
-        }
-
-        .source-tabs {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .tab-btn {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            padding: 8px 16px;
-            border-radius: 10px;
-            font-size: 0.88rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .tab-btn:hover {
-            color: var(--text-main);
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .tab-btn.active {
-            background: rgba(124, 58, 237, 0.2);
-            border-color: #8b5cf6;
-            color: #d8b4fe;
-            font-weight: 600;
-        }
-
-        .results-meta {
+            gap: 0.5rem;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 0.4rem 0.8rem;
+            border-radius: 999px;
             font-size: 0.85rem;
-            color: var(--text-dim);
+            font-weight: 600;
         }
-
-        /* RESULT CARDS */
-        .results-list {
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            animation: pulse-anim 1.5s infinite;
+        }
+        @keyframes pulse-anim {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        main {
+            max-width: 1300px;
+            margin: 2.5rem auto;
+            padding: 0 1.5rem;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 2rem;
+            flex: 1;
+        }
+        @media (max-width: 950px) {
+            main { grid-template-columns: 1fr; }
+        }
+        .sidebar {
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 1.5rem;
         }
-
-        .result-card {
-            background: var(--bg-card);
+        .card {
+            background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 16px;
-            padding: 22px 24px;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
         }
-
-        .result-card:hover {
-            background: var(--bg-card-hover);
-            border-color: rgba(139, 92, 246, 0.35);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        .result-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            gap: 12px;
-        }
-
-        .result-source-badge {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #34d399;
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 12px;
-        }
-
-        .result-source-badge.wiki {
-            background: rgba(59, 130, 246, 0.15);
-            border-color: rgba(59, 130, 246, 0.3);
-            color: #60a5fa;
-        }
-
-        .result-source-badge.tech {
-            background: rgba(245, 158, 11, 0.15);
-            border-color: rgba(245, 158, 11, 0.3);
-            color: #fbbf24;
-        }
-
-        .result-source-badge.local {
-            background: rgba(139, 92, 246, 0.18);
-            border-color: rgba(139, 92, 246, 0.35);
-            color: #c4b5fd;
-        }
-
-        .result-url {
-            color: var(--text-dim);
-            font-size: 0.8rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            max-width: 70%;
-        }
-
-        .result-title {
-            font-size: 1.25rem;
+        .card-title {
+            font-size: 1.1rem;
             font-weight: 700;
-            margin-bottom: 10px;
-            line-height: 1.35;
-        }
-
-        .result-title a {
-            color: #a5b4fc;
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .result-title a:hover {
-            color: #c4b5fd;
-            text-decoration: underline;
-        }
-
-        .result-desc {
-            color: var(--text-muted);
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 16px;
-        }
-
-        .result-actions {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
             display: flex;
             align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
+            gap: 0.5rem;
         }
-
-        .btn-action {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 7px 14px;
-            border-radius: 8px;
-            font-size: 0.82rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-action:hover {
-            background: rgba(139, 92, 246, 0.15);
-            border-color: rgba(139, 92, 246, 0.4);
-            color: #e9d5ff;
-        }
-
-        .btn-action.md-highlight {
-            background: rgba(124, 58, 237, 0.2);
-            border-color: #8b5cf6;
-            color: #d8b4fe;
-            font-weight: 600;
-        }
-
-        /* MODALS (CRAWL, EXTRACTOR, MD READER) */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(5, 6, 10, 0.82);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-box {
-            background: var(--bg-card);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 20px;
-            width: 100%;
-            max-width: 780px;
-            max-height: 88vh;
+        .nav-list {
+            list-style: none;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            gap: 0.5rem;
         }
-
-        .modal-header {
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .modal-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: white;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-close {
-            background: none;
-            border: none;
-            color: var(--text-dim);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 4px;
-            transition: color 0.2s;
-        }
-
-        .btn-close:hover {
-            color: white;
-        }
-
-        .modal-body {
-            padding: 24px;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .modal-footer {
-            padding: 16px 24px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.2);
-        }
-
-        /* INPUT / SELECT / PROGRESS */
-        .form-group {
-            margin-bottom: 18px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 0.88rem;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-            font-weight: 500;
-        }
-
-        .form-input, .form-select {
+        .nav-btn {
             width: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 12px 16px;
-            color: white;
+            text-align: left;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
             font-size: 0.95rem;
-            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-btn:hover, .nav-btn.active {
+            background: var(--surface-card);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+        .nav-btn.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px -3px var(--accent-glow);
+            color: var(--accent);
+        }
+        .endpoint-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            background: rgba(0, 242, 254, 0.1);
+            color: var(--accent);
+        }
+        .post-tag { background: rgba(79, 172, 254, 0.15); color: var(--secondary); }
+        
+        .content-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.25rem;
+        }
+        .panel-header h2 { font-size: 1.4rem; font-weight: 700; }
+        .panel-header p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 0.3rem; }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input, select, textarea {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
             outline: none;
             transition: border-color 0.2s;
         }
-
-        .form-input:focus, .form-select:focus {
-            border-color: #8b5cf6;
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
         }
-
-        /* MARKDOWN CODE VIEWER */
-        .md-preview {
-            background: #0d0f17;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 18px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.86rem;
-            line-height: 1.6;
-            color: #e2e8f0;
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-height: 480px;
-            overflow-y: auto;
-        }
-
-        /* PROGRESS BAR */
-        .progress-container {
-            margin-top: 16px;
-            display: none;
-        }
-
-        .progress-container.active {
-            display: block;
-        }
-
-        .progress-bar {
-            height: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--accent-gradient);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        /* SPINNER */
-        .spinner {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-top-color: #a855f7;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* TOAST NOTIFICATIONS */
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background: #1e1b4b;
-            border: 1px solid #8b5cf6;
-            color: #e9d5ff;
-            padding: 14px 22px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            z-index: 2000;
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            color: #000;
+            border: none;
+            padding: 0.9rem 1.5rem;
+            border-radius: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
             display: flex;
             align-items: center;
-            gap: 10px;
-            transform: translateY(100px);
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            justify-content: center;
+            gap: 0.5rem;
         }
-
-        .toast.show {
-            transform: translateY(0);
-            opacity: 1;
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -4px var(--accent-glow);
         }
+        
+        .response-box {
+            background: #060911;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: #a5b4fc;
+            max-height: 450px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            position: relative;
+        }
+        .response-box::before {
+            content: "JSON RESPONSE / OUTPUT";
+            position: absolute;
+            top: 0.5rem;
+            right: 0.8rem;
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            letter-spacing: 1px;
+        }
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .tech-box {
+            background: var(--surface-card);
+            border: 1px solid var(--border);
+            padding: 1rem;
+            border-radius: 10px;
+        }
+        .tech-box h4 { font-size: 0.9rem; color: var(--accent); margin-bottom: 0.3rem; font-family: 'JetBrains Mono', monospace; }
+        .tech-box p { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
     </style>
 </head>
 <body>
-
-    <!-- TOP NAVIGATION -->
-    <nav class="top-nav">
-        <a class="brand" onclick="goHome()">
-            <span class="brand-logo">RusyaSearch</span>
-            <span class="brand-badge">v2.0 MD Revolutionary</span>
-        </a>
-        <div class="nav-actions">
-            <button class="btn-nav" style="border-color: #8b5cf6; color: #d8b4fe;" onclick="openAiAgentModal()">
-                🤖 AI Agents API
-            </button>
-            <button class="btn-nav" onclick="openExtractorModal()">
-                ⚡ Extrator MD Studio
-            </button>
-            <button class="btn-nav" onclick="openCrawlModal()">
-                🕷️ Indexar Site
-            </button>
-            <button class="btn-nav primary" onclick="showStatsModal()">
-                📊 Estatísticas
-            </button>
+    <header>
+        <div class="logo">
+            ⚡ RusyaSearch <span class="badge">v3.0 AGENT CORE</span>
         </div>
-    </nav>
-
-    <!-- HERO HOME PAGE -->
-    <main class="home-page" id="homePage">
-        <h1 class="hero-title">Pesquisa Web Leve &<br>Tudo Extraído em Markdown</h1>
-        <p class="hero-subtitle">
-            Um motor de busca revolucionário que combina <span>Meta-Search na Web</span> (DuckDuckGo, Wikipédia, HackerNews) e <span>Crawler Local</span> com conversão instantânea de qualquer página para <span>Markdown (.md)</span> limpo.
-        </p>
-
-        <div class="search-wrapper">
-            <div class="search-bar">
-                <input type="text" class="search-input" id="homeSearchInput" placeholder="O que você quer pesquisar ou extrair hoje?" autofocus>
-                <button class="btn-search" onclick="executeSearch()">Buscar</button>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <div class="status-pill">
+                <div class="pulse"></div>
+                API & MCP: 100% Online
             </div>
+            <a href="/docs" target="_blank" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 600;">📚 Swagger Docs →</a>
         </div>
+    </header>
 
-        <div class="features-grid">
-            <div class="feature-chip" onclick="filterQuickSearch('Python Fastapi Markdown')">
-                🔥 Pesquisa Web Leve
+    <main>
+        <aside class="sidebar">
+            <div class="card">
+                <div class="card-title">🤖 Endpoints para IA</div>
+                <ul class="nav-list">
+                    <li><button class="nav-btn active" onclick="switchTab('search', this)">
+                        <span>Universal Search</span>
+                        <span class="endpoint-tag post-tag">POST /search</span>
+                    </button></li>
+                    <li><button class="nav-btn" onclick="switchTab('icons', this)">
+                        <span>Ícones & Vetores SVG</span>
+                        <span class="endpoint-tag">GET /icons</span>
+                    </button></li>
+                    <li><button class="nav-btn" onclick="switchTab('universal_browse', this)">
+                        <span>Matriz Universal (Bypass)</span>
+                        <span class="endpoint-tag post-tag">POST /universal_browse</span>
+                    </button></li>
+                    <li><button class="nav-btn" onclick="switchTab('research', this)">
+                        <span>Deep Research Synthesizer</span>
+                        <span class="endpoint-tag post-tag">POST /research</span>
+                    </button></li>
+                    <li><button class="nav-btn" onclick="switchTab('schemas', this)">
+                        <span>Schemas & Python SDK</span>
+                        <span class="endpoint-tag">GET /tools_schema</span>
+                    </button></li>
+                </ul>
             </div>
-            <div class="feature-chip" onclick="openExtractorModal()">
-                📝 URL para .MD Instantâneo
+
+            <div class="card">
+                <div class="card-title">🛡️ Quad-Tier Matrix v3.0</div>
+                <div class="tech-grid" style="grid-template-columns: 1fr; gap: 0.75rem;">
+                    <div class="tech-box">
+                        <h4>Tier 1: HTTPx Stealth</h4>
+                        <p>Cabeçalhos rotativos de navegadores modernos de alta velocidade (150ms).</p>
+                    </div>
+                    <div class="tech-box">
+                        <h4>Tier 2: Playwright WebGL Spoof</h4>
+                        <p>Disfarce de GPU Intel/WebGL e auto-clique em cookies/modais agressivos.</p>
+                    </div>
+                    <div class="tech-box">
+                        <h4>Tier 3: Jina AI Mirror</h4>
+                        <p>Espelhamento em tempo real para contornar paywalls pesados.</p>
+                    </div>
+                    <div class="tech-box">
+                        <h4>Tier 4: Wayback/Cache Bypass</h4>
+                        <p>Recuperação de snapshots históricos via CDX e Google Web Cache quando o site ao vivo está restrito.</p>
+                    </div>
+                </div>
             </div>
-            <div class="feature-chip" onclick="filterQuickSearch('Inteligência Artificial')">
-                📚 Wikipédia Enciclopédia
-            </div>
-            <div class="feature-chip" onclick="filterQuickSearch('Linux Kernel Tech')">
-                💻 Notícias Tech / HN
-            </div>
-            <div class="feature-chip" onclick="openCrawlModal()">
-                ⚡ Crawler & Índice Local
-            </div>
-            <div class="feature-chip" style="border-color: #8b5cf6; color: #e9d5ff;" onclick="openAiAgentModal()">
-                🤖 API para Agentes de IA (LLMs)
-            </div>
-        </div>
+        </aside>
+
+        <section class="content-panel" id="panel-area">
+            <!-- Dynamic Content via JS -->
+        </section>
     </main>
 
-    <!-- RESULTS PAGE -->
-    <section class="results-page" id="resultsPage">
-        <div class="results-toolbar">
-            <div class="source-tabs" id="sourceTabs" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
-                <button class="tab-btn active" onclick="setSource('all', this)">🌐 Todos</button>
-                <button class="tab-btn" onclick="setSource('web', this)">🦆 Web</button>
-                <button class="tab-btn" onclick="setSource('news', this)">📰 Notícias</button>
-                <button class="tab-btn" onclick="setSource('pdfs', this)">📄 PDFs</button>
-                <button class="tab-btn" onclick="setSource('arxiv', this)">🎓 Papers (arXiv)</button>
-                <button class="tab-btn" onclick="setSource('github', this)">🐙 GitHub</button>
-                <button class="tab-btn" onclick="setSource('stackoverflow', this)">💡 Stack Overflow</button>
-                <button class="tab-btn" onclick="setSource('wiki', this)">📚 Wikipédia</button>
-                <button class="tab-btn" onclick="setSource('tech', this)">💻 Tech / HN</button>
-                <button class="tab-btn" onclick="setSource('local', this)">⚡ Índice Local</button>
-            </div>
-
-            <!-- FILTERS BAR -->
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; width:100%; margin-bottom:14px; background:rgba(0,0,0,0.3); padding:10px 14px; border-radius:12px; border:1px solid var(--border);">
-                <input type="text" id="filterDomain" placeholder="site:exemplo.com" style="background:none; border:1px solid var(--border); border-radius:6px; padding:6px 10px; color:white; font-size:0.82rem; width:150px;">
-                <select id="filterDate" style="background:#0e1017; border:1px solid var(--border); border-radius:6px; padding:6px 10px; color:white; font-size:0.82rem;">
-                    <option value="">Qualquer data</option>
-                    <option value="d">Últimas 24 horas</option>
-                    <option value="w">Última semana</option>
-                    <option value="m">Último mês</option>
-                    <option value="y">Último ano</option>
-                </select>
-                <select id="filterLang" style="background:#0e1017; border:1px solid var(--border); border-radius:6px; padding:6px 10px; color:white; font-size:0.82rem;">
-                    <option value="pt">Idioma: Português</option>
-                    <option value="en">Idioma: Inglês</option>
-                    <option value="es">Idioma: Espanhol</option>
-                </select>
-                <button class="btn-action" onclick="executeSearch()">🔍 Aplicar Filtros</button>
-            </div>
-
-            <div style="display: flex; gap: 10px; align-items: center; justify-content:space-between; width:100%;">
-                <span class="results-meta" id="resultsMeta">0 resultados</span>
-                <button class="btn-action md-highlight" onclick="exportCurrentSearchMD()">
-                    📥 Baixar Pesquisa (.MD)
-                </button>
-            </div>
-        </div>
-
-        <div id="resultsList" class="results-list">
-            <!-- Dynamic search cards -->
-        </div>
-    </section>
-
-    <!-- MODAL 1: MARKDOWN READER / EXTRACTOR PREVIEW -->
-    <div class="modal-overlay" id="mdReaderModal">
-        <div class="modal-box">
-            <div class="modal-header">
-                <div class="modal-title" id="mdReaderTitle">📖 Leitor Markdown</div>
-                <button class="btn-close" onclick="closeModal('mdReaderModal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:0.85rem; color:var(--text-muted);">
-                    <span id="mdReaderUrl"></span>
-                    <span id="mdReaderStats"></span>
-                </div>
-                <div id="mdReaderSpinner" style="display:none; text-align:center; padding: 40px;">
-                    <div class="spinner"></div>
-                    <p style="margin-top:12px; color:var(--text-muted);">Extraindo e convertendo para Markdown limpo...</p>
-                </div>
-                <div class="md-preview" id="mdReaderContent"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-action" onclick="copyModalMarkdown()">📋 Copiar .MD</button>
-                <button class="btn-nav primary" id="btnDownloadMdModal">⬇️ Baixar Arquivo .MD</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL 2: URL TO MARKDOWN STUDIO -->
-    <div class="modal-overlay" id="extractorModal">
-        <div class="modal-box">
-            <div class="modal-header">
-                <div class="modal-title">⚡ Extrator URL ➔ Markdown Studio</div>
-                <button class="btn-close" onclick="closeModal('extractorModal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">Cole qualquer URL para extrair o conteúdo em Markdown (.md):</label>
-                    <input type="url" id="extractorUrlInput" class="form-input" placeholder="https://exemplo.com/artigo">
-                </div>
-                <button class="btn-nav primary" style="width:100%; justify-content:center; padding:14px;" onclick="runExtractorStudio()">
-                    Extrair Markdown Agora
-                </button>
-
-                <div id="extractorPreviewContainer" style="margin-top:24px; display:none;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <span class="form-label">Resultado Markdown (Com YAML Frontmatter):</span>
-                        <span id="extractorMetaText" style="font-size:0.8rem; color:var(--accent-cyan);"></span>
-                    </div>
-                    <div class="md-preview" id="extractorMdOutput" style="max-height:300px;"></div>
-                </div>
-            </div>
-            <div class="modal-footer" id="extractorActions" style="display:none;">
-                <button class="btn-action" onclick="copyStudioMarkdown()">📋 Copiar .MD</button>
-                <button class="btn-nav primary" id="btnDownloadStudioMd">⬇️ Baixar .MD</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL 3: CRAWLER MODAL -->
-    <div class="modal-overlay" id="crawlModal">
-        <div class="modal-box" style="max-width:520px;">
-            <div class="modal-header">
-                <div class="modal-title">🕷️ Indexar Site para o Índice Local</div>
-                <button class="btn-close" onclick="closeModal('crawlModal')">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label class="form-label">URL inicial do site (Seed URL):</label>
-                    <input type="url" id="crawlUrlInput" class="form-input" placeholder="https://exemplo.com">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Máximo de páginas para indexar:</label>
-                    <select id="crawlMaxSelect" class="form-select">
-                        <option value="20">20 páginas (Rápido)</option>
-                        <option value="50" selected>50 páginas (Recomendado)</option>
-                        <option value="100">100 páginas</option>
-                        <option value="200">200 páginas (Profundo)</option>
-                    </select>
-                </div>
-                <div style="display:flex; gap:12px;">
-                    <div class="form-group" style="flex:1;">
-                        <label class="form-label">Limite de Profundidade:</label>
-                        <select id="crawlDepthSelect" class="form-select">
-                            <option value="1">1 (Somente Home)</option>
-                            <option value="2">2 (Páginas diretas)</option>
-                            <option value="3" selected>3 (Profundo)</option>
-                            <option value="5">5 (Extremo)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label class="form-label">Paralelismo (Workers):</label>
-                        <select id="crawlConcurrencySelect" class="form-select">
-                            <option value="2">2 Workers</option>
-                            <option value="4" selected>4 Workers (Padrão)</option>
-                            <option value="8">8 Workers (Rápido)</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="margin-bottom: 14px; font-size:0.82rem; color: #34d399;">
-                    ✓ Descoberta via sitemap.xml & verificação de robots.txt ativadas
-                </div>
-
-                <div class="progress-container" id="crawlProgressBox">
-                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-muted);">
-                        <span id="crawlStatusText">Iniciando crawler...</span>
-                        <span id="crawlPercent">0%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="crawlProgressFill"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-action" onclick="closeModal('crawlModal')">Fechar</button>
-                <button class="btn-nav primary" id="btnStartCrawl" onclick="startCrawlTask()">Iniciar Indexação</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL 4: AI AGENTS API & TOOLS HUB -->
-    <div class="modal-overlay" id="aiAgentModal">
-        <div class="modal-box" style="max-width: 840px;">
-            <div class="modal-header">
-                <div class="modal-title">🤖 AI Agents Web Search & Browse API (LLMs, LangChain, CrewAI)</div>
-                <button class="btn-close" onclick="closeModal('aiAgentModal')">×</button>
-            </div>
-            <div class="modal-body">
-                <p style="color: var(--text-muted); font-size: 0.92rem; line-height: 1.6; margin-bottom: 18px;">
-                    O <b>RusyaSearch 2.0</b> oferece endpoints REST e Python SDK otimizados para Agentes de IA. Eles pesquisam no Google/Web, entram em múltiplas páginas e retornam <b>tudo em Markdown limpo e otimizado para o orçamento de tokens do LLM</b>.
-                </p>
-
-                <div style="display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button class="btn-action md-highlight" onclick="showAgentTab('python')">🔎 Pesquisa & SDK</button>
-                    <button class="btn-action" onclick="showAgentTab('browse')">🌐 Navegação & Browser</button>
-                    <button class="btn-action" onclick="showAgentTab('extract')">📄 Extração Estruturada</button>
-                    <button class="btn-action" onclick="showAgentTab('crawl')">🕷️ Crawl Avançado</button>
-                    <button class="btn-action" onclick="showAgentTab('openai')">⚙️ OpenAI Schema</button>
-                    <button class="btn-action" onclick="showAgentTab('test')">🧪 Playground AI</button>
-                </div>
-
-                <!-- TAB: BROWSE -->
-                <div id="agentTabBrowse" style="display:none;">
-                    <div style="margin-bottom:12px; font-size:0.9rem; color:var(--text-muted);">
-                        <b>🌐 Navegação Avançada para Agentes (`POST /api/v1/agent/browse`)</b> — Suporta renderização JS/Headless, simulação de login/cookies, clique em botões, scroll automático e captura de Screenshot:
-                    </div>
-                    <div style="display:flex; gap:10px; margin-bottom:12px;">
-                        <input type="url" id="browseTestUrl" class="form-input" placeholder="https://pt.wikipedia.org/wiki/Python" value="https://pt.wikipedia.org/wiki/Python">
-                        <select id="browseTestFormat" class="form-select" style="width:180px;">
-                            <option value="markdown">Markdown Limpo</option>
-                            <option value="clean_html">HTML Limpo</option>
-                            <option value="text">Texto Puro</option>
-                            <option value="json">JSON Estruturado</option>
-                        </select>
-                    </div>
-                    <button class="btn-nav primary" style="width:100%; justify-content:center; margin-bottom:12px;" onclick="testAgentBrowse()">
-                        🌐 Executar Navegação & Extrair Formato
-                    </button>
-                    <pre class="md-preview" id="browseTestOutput" style="max-height:220px;">Clique acima para testar o Browse do Agente</pre>
-                </div>
-
-                <!-- TAB: EXTRACT -->
-                <div id="agentTabExtract" style="display:none;">
-                    <div style="margin-bottom:12px; font-size:0.9rem; color:var(--text-muted);">
-                        <b>📄 Extração Especializada (`POST /api/v1/agent/extract`)</b> — Extraia Tabelas, Listas, Links, Imagens ou OCR em PDFs de qualquer URL:
-                    </div>
-                    <div style="display:flex; gap:10px; margin-bottom:12px;">
-                        <input type="url" id="extractTestUrl" class="form-input" placeholder="https://pt.wikipedia.org/wiki/Python" value="https://pt.wikipedia.org/wiki/Python">
-                        <select id="extractTestTarget" class="form-select" style="width:200px;">
-                            <option value="tables">📊 Extração de Tabelas</option>
-                            <option value="lists">📋 Extração de Listas</option>
-                            <option value="links">🔗 Extração de Links</option>
-                            <option value="images">🖼️ Extração de Imagens</option>
-                            <option value="pdf_ocr">📄 OCR em PDF</option>
-                        </select>
-                    </div>
-                    <button class="btn-nav primary" style="width:100%; justify-content:center; margin-bottom:12px;" onclick="testAgentExtract()">
-                        📄 Extrair Estrutura Específica
-                    </button>
-                    <pre class="md-preview" id="extractTestOutput" style="max-height:220px;">Clique acima para testar a Extração Estruturada</pre>
-                </div>
-
-                <!-- TAB: CRAWL INFO -->
-                <div id="agentTabCrawl" style="display:none;">
-                    <div style="margin-bottom:12px; font-size:0.9rem; color:var(--text-muted);">
-                        <b>🕷️ Crawl de Site Inteiro (`POST /api/v1/agent/crawl`)</b> — Suporta limite de profundidade, paralelismo assíncrono, sitemaps e robots.txt:
-                    </div>
-                    <pre class="md-preview" style="max-height:240px;"># Exemplo Python SDK para Crawl Profundo
-from agent_client import RusyaAgent
-
-agent = RusyaAgent("http://localhost:8080/api/v1/agent")
-
-status = agent.crawl(
-    seed_url="https://fastapi.tiangolo.com",
-    max_pages=100,
-    max_depth=3,
-    concurrency=4,
-    respect_robots=True
-)
-print(status)</pre>
-                </div>
-
-                <!-- TAB 1: PYTHON SDK -->
-                <div id="agentTabPython">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <span class="form-label">Exemplo de Uso via Python SDK (agent_client.py):</span>
-                        <button class="btn-action" onclick="copyAgentCode('codePythonSdk')">📋 Copiar Código</button>
-                    </div>
-                    <pre class="md-preview" id="codePythonSdk" style="max-height: 280px;">from agent_client import RusyaAgent
-
-agent = RusyaAgent("http://localhost:8080/api/v1/agent")
-
-# 1. Busca rápida na web
-res = agent.search("lançamento Python 3.13", max_results=5)
-
-# 2. Navegar em uma página e pegar Markdown otimizado para tokens
-page = agent.browse("https://pt.wikipedia.org/wiki/Python", max_chars=8000)
-print(page["markdown"])
-
-# 3. SUPER PESQUISA (Pesquisa + Navega em N páginas simultaneamente)
-dossie = agent.research("tendências de IA agentes autônomos 2026", browse_top_n=3)
-print(dossie["consolidated_dossier_markdown"])</pre>
-                </div>
-
-                <!-- TAB 2: OPENAI FUNCTION CALLING -->
-                <div id="agentTabOpenai" style="display:none;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <span class="form-label">Schema JSON para OpenAI / Anthropic Tool Calling (`GET /api/v1/agent/tools_schema`):</span>
-                        <button class="btn-action" onclick="copyAgentCode('codeOpenaiSpec')">📋 Copiar JSON</button>
-                    </div>
-                    <pre class="md-preview" id="codeOpenaiSpec" style="max-height: 280px;">[
-  {
-    "type": "function",
-    "function": {
-      "name": "rusyasearch_research",
-      "description": "Pesquisa na web E navega automaticamente nas Top N páginas, retornando um dossiê consolidado em Markdown limpo para o agente responder à pergunta.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "query": {"type": "string", "description": "Tópico de pesquisa web"},
-          "browse_top_n": {"type": "integer", "default": 2, "description": "Quantidade de páginas para ler em Markdown"}
-        },
-        "required": ["query"]
-      }
-    }
-  }
-]</pre>
-                </div>
-
-                <!-- TAB 3: CURL -->
-                <div id="agentTabCurl" style="display:none;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                        <span class="form-label">Exemplos cURL para Agentes HTTP:</span>
-                        <button class="btn-action" onclick="copyAgentCode('codeCurlSpec')">📋 Copiar cURL</button>
-                    </div>
-                    <pre class="md-preview" id="codeCurlSpec" style="max-height: 280px;"># Pesquisar na Web
-curl -X POST http://localhost:8080/api/v1/agent/search \
-  -H "Content-Type: application/json" \
-  -d '{"query": "agentes autônomos LLM", "max_results": 5}'
-
-# Entrar na página e extrair Markdown limpo
-curl -X POST http://localhost:8080/api/v1/agent/browse \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://pt.wikipedia.org/wiki/Inteligência_artificial", "max_chars": 6000}'
-
-# Super Dossiê de Pesquisa AI
-curl -X POST http://localhost:8080/api/v1/agent/research \
-  -H "Content-Type: application/json" \
-  -d '{"query": "notícias linux kernel", "browse_top_n": 2}'</pre>
-                </div>
-
-                <!-- TAB 4: LIVE PLAYGROUND -->
-                <div id="agentTabTest" style="display:none;">
-                    <div class="form-group">
-                        <label class="form-label">Tópico para teste ao vivo do Super Comando `/api/v1/agent/research`:</label>
-                        <input type="text" id="aiTestInput" class="form-input" placeholder="Ex: agentes de ia revolução" value="inteligência artificial agentes">
-                    </div>
-                    <button class="btn-nav primary" style="width:100%; justify-content:center; padding:12px;" onclick="testAiAgentResearch()">
-                        🚀 Executar Super Pesquisa + Navegação (Agent Research)
-                    </button>
-                    <div id="aiTestSpinner" style="display:none; text-align:center; padding: 25px;">
-                        <div class="spinner"></div>
-                        <p style="margin-top:10px; color:var(--text-muted);">Agente pesquisando e navegando nas páginas em Markdown...</p>
-                    </div>
-                    <div id="aiTestOutputContainer" style="display:none; margin-top:18px;">
-                        <span class="form-label">Dossiê Retornado para o Agente (Markdown):</span>
-                        <pre class="md-preview" id="aiTestOutput" style="max-height:220px;"></pre>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-action" onclick="closeModal('aiAgentModal')">Fechar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- TOAST NOTIFICATION -->
-    <div class="toast" id="toastBox">
-        <span id="toastIcon">✨</span>
-        <span id="toastText">Ação concluída com sucesso!</span>
-    </div>
-
     <script>
-        const API = window.location.origin;
-        let currentQuery = "";
-        let currentSource = "all";
-        let activeModalMarkdown = "";
-        let activeStudioMarkdown = "";
-        let crawlInterval = null;
-
-        // KEYBOARD LISTENERS
-        document.getElementById('homeSearchInput').addEventListener('keydown', e => {
-            if (e.key === 'Enter') executeSearch();
-        });
-
-        function filterQuickSearch(q) {
-            document.getElementById('homeSearchInput').value = q;
-            executeSearch();
-        }
-
-        function setSource(source, btn) {
-            currentSource = source;
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            if (btn) btn.classList.add('active');
-            if (currentQuery) executeSearch();
-        }
-
-        function goHome() {
-            document.getElementById('homePage').style.display = 'flex';
-            document.getElementById('resultsPage').style.display = 'none';
-        }
-
-        async function executeSearch(page = 1) {
-            currentPage = page;
-            const query = document.getElementById('homeSearchInput').value.trim();
-            if (!query) return;
-            currentQuery = query;
-
-            document.getElementById('homePage').style.display = 'none';
-            document.getElementById('resultsPage').style.display = 'block';
-
-            const list = document.getElementById('resultsList');
-            const meta = document.getElementById('resultsMeta');
-            list.innerHTML = `<div style="text-align:center; padding: 60px;"><div class="spinner"></div><p style="margin-top:12px; color:var(--text-muted);">Buscando em tempo real na Web (Página ${page})...</p></div>`;
-
-            try {
-                const startTime = performance.now();
-                const domain = document.getElementById('filterDomain') ? document.getElementById('filterDomain').value.trim() : '';
-                const timeRange = document.getElementById('filterDate') ? document.getElementById('filterDate').value : '';
-                const lang = document.getElementById('filterLang') ? document.getElementById('filterLang').value : 'pt';
-
-                const params = new URLSearchParams({
-                    query: query,
-                    sources: currentSource,
-                    max_results: 30,
-                    domain: domain,
-                    time_range: timeRange,
-                    lang: lang,
-                    page: page
-                });
-
-                const res = await fetch(`${API}/api/v1/agent/search?${params.toString()}`);
-                const data = await res.json();
-                const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-
-                meta.textContent = `Página ${page} — Aprox. ${data.total} resultados encontrados em ${elapsed}s`;
-
-                if (!data.results || data.results.length === 0) {
-                    list.innerHTML = `
-                        <div style="text-align:center; padding: 60px; background: var(--bg-card); border-radius: 16px;">
-                            <h3 style="font-size: 1.3rem; margin-bottom: 8px;">Nenhum resultado para "${query}" na página ${page}</h3>
-                            <p style="color:var(--text-muted); margin-bottom: 20px;">Tente outra palavra-chave ou volte para a página anterior.</p>
-                            ${page > 1 ? `<button class="btn-nav primary" onclick="executeSearch(${page - 1})">⬅️ Voltar para Página ${page - 1}</button>` : `<button class="btn-nav primary" onclick="openCrawlModal()">+ Indexar Site</button>`}
-                        </div>
-                    `;
-                    return;
-                }
-
-                const resultsCards = data.results.map(r => {
-                    const safeUrl = encodeURIComponent(r.url);
-                    if (r.source === 'Imagens Web') {
-                        return `
-                            <div class="result-card" style="display:flex; flex-direction:column; gap:12px;">
-                                <div class="result-header">
-                                    <span class="badge tech">🖼️ Imagem Direta</span>
-                                    <span class="score">Score: ${r.score}</span>
-                                </div>
-                                <div style="max-height: 320px; overflow:hidden; border-radius:12px; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; padding:10px;">
-                                    <img src="${r.url}" alt="${r.title}" style="max-height:300px; max-width:100%; object-fit:contain; border-radius:8px;" loading="lazy" />
-                                </div>
-                                <h3><a href="${r.url}" target="_blank">${r.title}</a></h3>
-                                <div class="url" style="word-break:break-all; font-family:monospace; font-size:0.85rem;">URL Direta: ${r.url}</div>
-                                <p class="snippet">${r.description}</p>
-                                <div class="card-actions">
-                                    <button class="btn-action primary" onclick="navigator.clipboard.writeText('${r.url}'); showToast('URL Direta copiada para usar no seu site!', '📋')">📋 Copiar URL Direta (.png/.jpg)</button>
-                                    <button class="btn-action" onclick="navigator.clipboard.writeText('<img src=\\'${r.url}\\' alt=\\'${r.title}\\' />'); showToast('Tag HTML &lt;img&gt; copiada!', '💻')">💻 Copiar Tag &lt;img&gt; HTML</button>
-                                    <a href="${r.url}" target="_blank" class="btn-action" style="text-decoration:none; display:inline-flex; align-items:center;">
-                                        🖼️ Abrir Imagem Original
-                                    </a>
-                                </div>
-                            </div>
-                        `;
-                    }
-
-                    let badgeClass = '';
-                    if (r.source.includes('Wikip')) badgeClass = 'wiki';
-                    else if (r.source.includes('Hacker') || r.source.includes('Tech')) badgeClass = 'tech';
-                    else if (r.source.includes('Local')) badgeClass = 'local';
-
-                    return `
-                        <div class="result-card">
-                            <div class="result-header">
-                                <span class="badge ${badgeClass}">${r.source}</span>
-                                <span class="score">Score: ${r.score}</span>
-                            </div>
-                            <h3><a href="${r.url}" target="_blank">${r.title}</a></h3>
-                            <div class="url">${r.url}</div>
-                            <p class="snippet">${r.description || 'Sem descrição.'}</p>
-                            <div class="card-actions">
-                                <button class="btn-action primary" onclick="openMarkdownReader('${safeUrl}')">📖 Ler em Markdown (.md)</button>
-                                <button class="btn-action" onclick="openExtractStudio('${safeUrl}')">⚡ Extrair Tabelas/Dados</button>
-                                <a href="${r.url}" target="_blank" class="btn-action" style="text-decoration:none; display:inline-flex; align-items:center;">
-                                    🌐 Abrir Site
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                const paginationBar = `
-                    <div style="display: flex; justify-content: center; align-items: center; gap: 16px; margin: 36px 0; padding-bottom: 40px;">
-                        <button class="btn-nav" onclick="executeSearch(${page - 1})" ${page <= 1 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>⬅️ Página Anterior</button>
-                        <span style="font-weight: 600; color: var(--accent); font-size: 1.05rem; padding: 6px 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border);">Página ${page}</span>
-                        <button class="btn-nav primary" onclick="executeSearch(${page + 1})">Próxima Página ➡️</button>
+        const tabs = {
+            search: {
+                title: "Agent Universal Search",
+                desc: "Pesquisa multi-motor em tempo real (Google, DuckDuckGo, Reddit, arXiv, GitHub, etc.) retornando resumos e pontuação.",
+                form: `
+                    <div class="form-group">
+                        <label>Consulta (Query)</label>
+                        <input type="text" id="q-search" value="arquitetura de agentes autonomos langchain e mcp">
                     </div>
-                `;
-
-                list.innerHTML = resultsCards + paginationBar;
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-
-            } catch (err) {
-                list.innerHTML = `<div style="color:#ef4444; text-align:center; padding:40px;">Erro ao buscar resultados: ${err.message}</div>`;
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Fonte de Dados</label>
+                            <select id="src-search">
+                                <option value="all">all (Todas as fontes)</option>
+                                <option value="web">web (Google & DuckDuckGo)</option>
+                                <option value="reddit">reddit (Discussões completas)</option>
+                                <option value="icons">icons (SVGs e PNGs transparentes)</option>
+                                <option value="scholar">scholar (Artigos Científicos/arXiv)</option>
+                                <option value="github">github (Repositórios & Código)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Limite de Resultados</label>
+                            <input type="number" id="limit-search" value="8" min="1" max="50">
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="runAgentSearch()">⚡ Executar Pesquisa via API</button>
+                `
+            },
+            icons: {
+                title: "Ícones, SVGs & Logos Transparente",
+                desc: "Especializado para Agentes IA gerando UIs e componentes Web. Retorna links diretos e snippets <img src=... /> prontos.",
+                form: `
+                    <div class="form-group">
+                        <label>Nome do Ícone, Marca ou Tecnologia</label>
+                        <input type="text" id="q-icons" value="python logo svg transparent">
+                    </div>
+                    <button class="btn-primary" onclick="runAgentIcons()">🎨 Buscar Ícones e SVGs</button>
+                `
+            },
+            universal_browse: {
+                title: "Matriz Universal de Extração (Bypass Total)",
+                desc: "Acessa qualquer URL acionando em cascata nosso motor Quad-Tier (HTTPx -> Playwright -> Jina -> Wayback/Cache). Garantia 100% de Markdown.",
+                form: `
+                    <div class="form-group">
+                        <label>URL Restrita ou Alvo</label>
+                        <input type="text" id="url-browse" value="https://en.wikipedia.org/wiki/Intelligent_agent">
+                    </div>
+                    <button class="btn-primary" onclick="runUniversalBrowse()">🚀 Extrair Markdown com Matriz Universal</button>
+                `
+            },
+            research: {
+                title: "Deep Research Synthesizer",
+                desc: "Super-comando: O agente busca o tema, entra simultaneamente nas Top N páginas em paralelo e compila tudo em um dossiê executivo.",
+                form: `
+                    <div class="form-group">
+                        <label>Tópico de Pesquisa Profunda</label>
+                        <input type="text" id="q-research" value="Model Context Protocol MCP by Anthropic architecture and tools">
+                    </div>
+                    <div class="form-group">
+                        <label>Top N Páginas para Acessar na Íntegra</label>
+                        <input type="number" id="topn-research" value="2" min="1" max="5">
+                    </div>
+                    <button class="btn-primary" onclick="runAgentResearch()">🧠 Gerar Dossiê Sintético Completo</button>
+                `
+            },
+            schemas: {
+                title: "Agent Schemas & Python/LangChain SDK",
+                desc: "Definições JSON prontas para injeção no OpenAI Function Calling, Claude Tool Use e SDK Python nativo do RusyaSearch 3.0.",
+                form: `
+                    <button class="btn-primary" onclick="runGetSchemas()">📦 Carregar Schemas e Código SDK</button>
+                `
             }
+        };
+
+        function switchTab(tabKey, btnElement) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            if(btnElement) btnElement.classList.add('active');
+
+            const tab = tabs[tabKey];
+            const area = document.getElementById('panel-area');
+            area.innerHTML = `
+                <div class="panel-header">
+                    <div>
+                        <h2>${tab.title}</h2>
+                        <p>${tab.desc}</p>
+                    </div>
+                </div>
+                ${tab.form}
+                <div class="response-box" id="res-output">Aguardando execução ou consulta...</div>
+            `;
+            if(tabKey === 'schemas') runGetSchemas();
         }
 
-        // EXPORT FULL SEARCH AS MD
-        function exportCurrentSearchMD() {
-            if (!currentQuery) return showToast("Faça uma busca antes de exportar!", "⚠️");
-            window.location.href = `${API}/api/export/search.md?q=${encodeURIComponent(currentQuery)}&source=${currentSource}`;
-            showToast("Baixando relatório de pesquisa em Markdown...", "📥");
-        }
-
-        // MARKDOWN READER MODAL
-        async function openMarkdownReader(encodedUrl) {
-            const url = decodeURIComponent(encodedUrl);
-            document.getElementById('mdReaderModal').classList.add('active');
-            document.getElementById('mdReaderTitle').textContent = `📖 Leitor Markdown`;
-            document.getElementById('mdReaderUrl').textContent = url;
-            document.getElementById('mdReaderStats').textContent = "";
-            document.getElementById('mdReaderContent').textContent = "";
-            document.getElementById('mdReaderSpinner').style.display = 'block';
-
+        async function runAgentSearch() {
+            const q = document.getElementById('q-search').value;
+            const src = document.getElementById('src-search').value;
+            const limit = parseInt(document.getElementById('limit-search').value);
+            const out = document.getElementById('res-output');
+            out.textContent = "⌛ Consultando motor universal de agentes...";
             try {
-                const res = await fetch(`${API}/api/extract?url=${encodeURIComponent(url)}`);
-                const data = await res.json();
-
-                document.getElementById('mdReaderSpinner').style.display = 'none';
-                activeMarkdown = data.markdown || "Sem conteúdo em markdown.";
-                activeModalUrl = url;
-
-                document.getElementById('mdReaderTitle').textContent = `📖 ${data.title || 'Leitor MD'}`;
-                document.getElementById('mdReaderStats').textContent = `${data.word_count || 0} palavras • ~${data.reading_time_min || 1} min leitura`;
-                document.getElementById('mdReaderContent').textContent = activeMarkdown;
-
-                document.getElementById('btnDownloadMdModal').onclick = () => {
-                    window.location.href = `${API}/api/download/md?url=${encodeURIComponent(url)}`;
-                };
-            } catch (err) {
-                document.getElementById('mdReaderSpinner').style.display = 'none';
-                document.getElementById('mdReaderContent').textContent = `Erro ao extrair Markdown: ${err.message}`;
-            }
-        }
-
-        function copyModalMarkdown() {
-            const text = document.getElementById('mdReaderContent').textContent;
-            navigator.clipboard.writeText(text);
-            showToast("Conteúdo Markdown copiado com sucesso!", "📋");
-        }
-
-        async function copySingleMd(encodedUrl) {
-            const url = decodeURIComponent(encodedUrl);
-            showToast("Extraindo e copiando Markdown...", "⏳");
-            try {
-                const res = await fetch(`${API}/api/extract?url=${encodeURIComponent(url)}`);
-                const data = await res.json();
-                await navigator.clipboard.writeText(data.markdown || "");
-                showToast("Markdown copiado para a área de transferência!", "✅");
-            } catch (err) {
-                showToast("Erro ao extrair Markdown.", "❌");
-            }
-        }
-
-        function downloadSingleMd(encodedUrl) {
-            const url = decodeURIComponent(encodedUrl);
-            window.location.href = `${API}/api/download/md?url=${encodeURIComponent(url)}`;
-            showToast("Baixando arquivo .md...", "⬇️");
-        }
-
-        // EXTRACTOR STUDIO
-        function openExtractorModal() {
-            document.getElementById('extractorModal').classList.add('active');
-        }
-
-        async function runExtractorStudio() {
-            const url = document.getElementById('extractorUrlInput').value.trim();
-            if (!url) return showToast("Digite uma URL válida!", "⚠️");
-
-            document.getElementById('extractorPreviewContainer').style.display = 'block';
-            document.getElementById('extractorMdOutput').textContent = "Extraindo conteúdo... Aguarde...";
-            document.getElementById('extractorActions').style.display = 'none';
-
-            try {
-                const res = await fetch(`${API}/api/extract?url=${encodeURIComponent(url)}`);
-                const data = await res.json();
-                activeStudioMarkdown = data.markdown || "";
-
-                document.getElementById('extractorMetaText').textContent = `${data.word_count || 0} palavras | ~${data.reading_time_min || 1} min`;
-                document.getElementById('extractorMdOutput').textContent = activeStudioMarkdown;
-                document.getElementById('extractorActions').style.display = 'flex';
-
-                document.getElementById('btnDownloadStudioMd').onclick = () => {
-                    window.location.href = `${API}/api/download/md?url=${encodeURIComponent(url)}`;
-                };
-                showToast("Markdown extraído com sucesso!", "✨");
-            } catch (err) {
-                document.getElementById('extractorMdOutput').textContent = `Erro ao extrair página: ${err.message}`;
-            }
-        }
-
-        function copyStudioMarkdown() {
-            navigator.clipboard.writeText(activeStudioMarkdown);
-            showToast("Markdown copiado!", "📋");
-        }
-
-        // CRAWLER MODAL
-        function openCrawlModal() {
-            document.getElementById('crawlModal').classList.add('active');
-        }
-
-        async function startCrawlTask() {
-            const url = document.getElementById('crawlUrlInput').value.trim();
-            const max = document.getElementById('crawlMaxSelect').value;
-            if (!url) return showToast("Digite a URL do site para indexar!", "⚠️");
-
-            document.getElementById('btnStartCrawl').disabled = true;
-            document.getElementById('crawlProgressBox').classList.add('active');
-            document.getElementById('crawlStatusText').textContent = "Iniciando crawler e extraindo Markdown...";
-            document.getElementById('crawlPercent').textContent = "5%";
-            document.getElementById('crawlProgressFill').style.width = "5%";
-
-            try {
-                await fetch(`${API}/api/crawl?url=${encodeURIComponent(url)}&max_pages=${max}`, { method: 'POST' });
-            } catch (e) {}
-
-            crawlInterval = setInterval(async () => {
-                try {
-                    const res = await fetch(`${API}/api/crawl/status`);
-                    const s = await res.json();
-                    const pct = s.total ? Math.min(95, Math.round((s.pages / s.total) * 100)) : 10;
-                    document.getElementById('crawlProgressFill').style.width = pct + "%";
-                    document.getElementById('crawlPercent').textContent = pct + "%";
-                    document.getElementById('crawlStatusText').textContent = `Indexando... (${s.pages}/${s.total} páginas em MD)`;
-
-                    if (!s.running && s.pages > 0) {
-                        clearInterval(crawlInterval);
-                        document.getElementById('crawlProgressFill').style.width = "100%";
-                        document.getElementById('crawlPercent').textContent = "100%";
-                        document.getElementById('crawlStatusText').textContent = `✔ Concluído! ${s.pages} páginas indexadas com sucesso!`;
-                        document.getElementById('btnStartCrawl').disabled = false;
-                        showToast(`Indexação concluída: ${s.pages} páginas salvas em Markdown!`, "🎉");
-                    }
-                } catch (e) {}
-            }, 1200);
-        }
-
-        // STATS MODAL
-        async function showStatsModal() {
-            try {
-                const res = await fetch(`${API}/api/stats`);
-                const s = await res.json();
-                alert(`📊 Estatísticas do RusyaSearch 2.0:\n\n• Documentos indexados em MD: ${s.documents}\n• Termos únicos no índice: ${s.unique_terms}\n• Tamanho do índice: ${(s.index_size / 1024).toFixed(1)} KB`);
-            } catch (e) {
-                alert("Não foi possível carregar estatísticas.");
-            }
-        }
-
-        function openAiAgentModal() {
-            document.getElementById('aiAgentModal').classList.add('active');
-            showAgentTab('python');
-        }
-
-        function showAgentTab(tabName) {
-            ['python', 'browse', 'extract', 'crawl', 'openai', 'curl', 'test'].forEach(t => {
-                const el = document.getElementById('agentTab' + t.charAt(0).toUpperCase() + t.slice(1));
-                if (el) el.style.display = (t === tabName) ? 'block' : 'none';
-            });
-        }
-
-        async function testAgentBrowse() {
-            const url = document.getElementById('browseTestUrl').value.trim();
-            const fmt = document.getElementById('browseTestFormat').value;
-            if (!url) return showToast("Digite a URL para navegar!", "⚠️");
-            document.getElementById('browseTestOutput').textContent = "🌐 Navegando e extraindo formato " + fmt + "...";
-            try {
-                const res = await fetch(`${API}/api/v1/agent/browse`, {
+                const res = await fetch('/api/v1/agent/search', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url, format: fmt, js_render: true })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: q, sources: src, max_results: limit})
                 });
                 const data = await res.json();
-                document.getElementById('browseTestOutput').textContent = typeof data.content === 'string' ? data.content : JSON.dumps(data.content, null, 2);
-                showToast("Browse concluído no formato " + fmt + "!", "🌐");
-            } catch (e) {
-                document.getElementById('browseTestOutput').textContent = "Erro: " + e.message;
-            }
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch(e) { out.textContent = "Erro: " + e; }
         }
 
-        async function testAgentExtract() {
-            const url = document.getElementById('extractTestUrl').value.trim();
-            const target = document.getElementById('extractTestTarget').value;
-            if (!url) return showToast("Digite a URL para extração!", "⚠️");
-            document.getElementById('extractTestOutput').textContent = "📄 Extraindo " + target + " da página...";
+        async function runAgentIcons() {
+            const q = document.getElementById('q-icons').value;
+            const out = document.getElementById('res-output');
+            out.textContent = "⌛ Buscando ícones transparentes e SVGs...";
             try {
-                const res = await fetch(`${API}/api/v1/agent/extract`, {
+                const res = await fetch(`/api/v1/agent/icons?query=${encodeURIComponent(q)}&limit=15`);
+                const data = await res.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch(e) { out.textContent = "Erro: " + e; }
+        }
+
+        async function runUniversalBrowse() {
+            const url = document.getElementById('url-browse').value;
+            const out = document.getElementById('res-output');
+            out.textContent = "⌛ Acionando Matriz Universal Quad-Tier (HTTPx -> Playwright -> Jina -> Wayback/Cache)...";
+            try {
+                const res = await fetch('/api/v1/agent/universal_browse', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url: url, target: target })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url: url, max_chars: 12000})
                 });
                 const data = await res.json();
-                document.getElementById('extractTestOutput').textContent = JSON.dumps(data, null, 2);
-                showToast("Extração concluída!", "📄");
-            } catch (e) {
-                document.getElementById('extractTestOutput').textContent = "Erro: " + e.message;
-            }
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch(e) { out.textContent = "Erro: " + e; }
         }
 
-        function copyAgentCode(elementId) {
-            const text = document.getElementById(elementId).textContent;
-            navigator.clipboard.writeText(text);
-            showToast("Código copiado para o Agente de IA!", "📋");
-        }
-
-        async function testAiAgentResearch() {
-            const query = document.getElementById('aiTestInput').value.trim();
-            if (!query) return showToast("Digite um tópico de teste!", "⚠️");
-
-            document.getElementById('aiTestSpinner').style.display = 'block';
-            document.getElementById('aiTestOutputContainer').style.display = 'none';
-
+        async function runAgentResearch() {
+            const q = document.getElementById('q-research').value;
+            const topn = parseInt(document.getElementById('topn-research').value);
+            const out = document.getElementById('res-output');
+            out.textContent = "⌛ Pesquisando e extraindo Top N páginas em paralelo... Aguarde...";
             try {
-                const res = await fetch(`${API}/api/v1/agent/research`, {
+                const res = await fetch('/api/v1/agent/research', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: query, num_results: 3, browse_top_n: 2 })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({query: q, num_results: 6, browse_top_n: topn, max_chars_per_page: 5000})
                 });
                 const data = await res.json();
-                document.getElementById('aiTestSpinner').style.display = 'none';
-                document.getElementById('aiTestOutputContainer').style.display = 'block';
-                document.getElementById('aiTestOutput').textContent = data.consolidated_dossier_markdown || JSON.dumps(data, null, 2);
-                showToast("Dossiê de Pesquisa AI gerado com sucesso!", "🤖");
-            } catch (err) {
-                document.getElementById('aiTestSpinner').style.display = 'none';
-                showToast("Erro no teste do Agente: " + err.message, "❌");
-            }
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch(e) { out.textContent = "Erro: " + e; }
         }
 
-        function closeModal(id) {
-            document.getElementById(id).classList.remove('active');
-            if (id === 'crawlModal' && crawlInterval) clearInterval(crawlInterval);
+        async function runGetSchemas() {
+            const out = document.getElementById('res-output');
+            out.textContent = "⌛ Obtendo schemas OpenAI/Claude/LangChain...";
+            try {
+                const res = await fetch('/api/v1/agent/tools_schema');
+                const data = await res.json();
+                out.textContent = JSON.stringify(data, null, 2);
+            } catch(e) { out.textContent = "Erro: " + e; }
         }
 
-        function showToast(msg, icon = "✨") {
-            const t = document.getElementById('toastBox');
-            document.getElementById('toastIcon').textContent = icon;
-            document.getElementById('toastText').textContent = msg;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3500);
-        }
+        // Initialize default tab
+        window.addEventListener('DOMContentLoaded', () => switchTab('search', document.querySelector('.nav-btn')));
     </script>
 </body>
 </html>
