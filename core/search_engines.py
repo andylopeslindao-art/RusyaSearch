@@ -872,6 +872,25 @@ class StackOverflowSearcher:
     Pesquisa de discussões técnicas e soluções no Stack Overflow API.
     """
     @classmethod
+    async def _clean_so_html(cls, html_text: str) -> str:
+        if not html_text:
+            return ""
+        try:
+            from bs4 import BeautifulSoup
+            import html
+            soup = BeautifulSoup(html.unescape(html_text), "lxml")
+            for pre in soup.find_all("pre"):
+                code = pre.find("code")
+                code_txt = code.get_text() if code else pre.get_text()
+                pre.replace_with(f"\n```python\n{code_txt.strip()}\n```\n")
+            for code in soup.find_all("code"):
+                code.replace_with(f"`{code.get_text()}`")
+            return soup.get_text(separator="\n", strip=True)
+        except Exception:
+            import re
+            return re.sub(r'<[^>]+>', '', html_text)
+
+    @classmethod
     async def search(cls, query: str, limit: int = 5) -> List[SearchResult]:
         results = []
         try:
@@ -881,23 +900,53 @@ class StackOverflowSearcher:
                 "order": "desc",
                 "sort": "relevance",
                 "site": "stackoverflow",
-                "pagesize": limit
+                "pagesize": limit,
+                "filter": "withbody"
             }
-            async with httpx.AsyncClient(timeout=6.0, headers={"User-Agent": "RusyaSearch/2.0"}) as client:
+            async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "RusyaSearch/3.0"}) as client:
                 resp = await client.get(url, params=params)
                 if resp.status_code == 200:
-                    for item in resp.json().get("items", []):
+                    items = resp.json().get("items", [])
+                    
+                    async def fetch_answer(qid: int):
+                        try:
+                            ans_url = f"https://api.stackexchange.com/2.3/questions/{qid}/answers"
+                            r = await client.get(ans_url, params={"site": "stackoverflow", "order": "desc", "sort": "votes", "filter": "withbody"})
+                            if r.status_code == 200:
+                                ans_items = r.json().get("items", [])
+                                accepted = [a for a in ans_items if a.get("is_accepted")]
+                                top_ans = accepted[0] if accepted else (ans_items[0] if ans_items else None)
+                                if top_ans:
+                                    return await cls._clean_so_html(top_ans.get("body", "")), top_ans.get("is_accepted", False), top_ans.get("score", 0)
+                        except Exception:
+                            pass
+                        return "", False, 0
+
+                    ans_tasks = [fetch_answer(item["question_id"]) if item.get("answer_count", 0) > 0 else asyncio.sleep(0, result=("", False, 0)) for item in items[:limit]]
+                    answers_data = await asyncio.gather(*ans_tasks)
+
+                    for item, (ans_md, is_accepted, ans_score) in zip(items[:limit], answers_data):
                         title = item.get("title", "")
                         link = item.get("link", "")
                         score = item.get("score", 0)
                         answers = item.get("answer_count", 0)
                         tags = ", ".join(item.get("tags", [])[:4])
+                        
+                        if ans_md:
+                            status_badge = "✔ RESPOSTA ACEITA" if is_accepted else f"👍 Top Resposta ({ans_score} votos)"
+                            desc = f"📌 **{status_badge}** | Pergunta ({score} votos) | Tags: `{tags}`\n\n### Solução Pronta para Uso:\n{ans_md}"
+                            src = "StackOverflow Aceita" if is_accepted else "StackOverflow Resposta"
+                        else:
+                            q_body = await cls._clean_so_html(item.get("body", ""))
+                            desc = f"Votos: {score} | Respostas: {answers} | Tags: `{tags}`\n\n**Detalhes da Pergunta:**\n{q_body[:1500]}"
+                            src = "StackOverflow"
+
                         results.append(SearchResult(
                             title=f"[StackOverflow] {title}",
                             url=link,
-                            description=f"Votos: {score} | Respostas: {answers} | Tags: [{tags}]",
-                            source="Stack Overflow",
-                            score=1.3
+                            description=desc,
+                            source=src,
+                            score=10.0 if is_accepted else 8.5
                         ))
         except Exception:
             pass

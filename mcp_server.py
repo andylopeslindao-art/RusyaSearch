@@ -56,38 +56,44 @@ async def rusya_code_solve(
 ) -> str:
     """
     [ESPECIAL CLAUDE CODE & IDEs] Solucionador Rápido de Erros e Bugs de Código.
-    Realiza busca cruzada em paralelo no StackOverflow, GitHub Issues e Brave Tech Supreme,
-    extraindo as respostas aceitas, blocos de código e correções de terminal para que
-    o agente aplique a correção imediatamente no código sem perder tempo navegando.
+    Realiza busca cruzada e extração em paralelo no StackOverflow (com corpo e código da resposta aceita),
+    GitHub Issues e Brave Tech Supreme, devolvendo blocos de código prontos para copiar e aplicar.
 
     Parâmetros:
     - error_message_or_question: A mensagem de erro (traceback) ou dúvida técnica exata.
     - language: Linguagem ou framework (ex: 'python', 'rust', 'nextjs', 'fastapi').
     - max_solutions: Quantidade de soluções comentadas a extrair (padrão: 4).
     """
-    q_tech = f"{error_message_or_question} {language} solution fix"
-    results = await MetaSearchEngine.search_all(
-        query=q_tech,
-        sources="stackoverflow",
-        limit=max_solutions * 2
-    )
+    q_tech = f"{error_message_or_question} {language} fix solution"
+    
+    so_task = MetaSearchEngine.search_all(query=q_tech, sources="stackoverflow", limit=max_solutions)
+    gh_task = MetaSearchEngine.search_all(query=q_tech, sources="github", limit=2)
+    brave_task = MetaSearchEngine.search_all(query=f"{error_message_or_question} {language}", sources="brave", limit=2)
 
-    formatted = [f"# 🛠️ Rusya Code Solver — Soluções Para: `{error_message_or_question}` ({language})\n"]
-    seen_titles = set()
+    so_res, gh_res, brave_res = await asyncio.gather(so_task, gh_task, brave_task)
+    
+    all_res = so_res + gh_res + brave_res
+    formatted = [f"# 🛠️ Rusya Quantum Code Solver — Diagnóstico & Solução: `{error_message_or_question}` ({language})\n"]
+    seen_urls = set()
     count = 0
 
-    for r in results:
+    for r in all_res:
         title = _get_attr(r, "title")
         url = _get_attr(r, "url")
         desc = _get_attr(r, "description")
-        source = _get_attr(r, "source", "StackOverflow / Tech")
+        source = _get_attr(r, "source", "Tech Search")
 
-        if title in seen_titles or not url:
+        if not url or url in seen_urls:
             continue
-        seen_titles.add(title)
+        seen_urls.add(url)
         count += 1
 
-        formatted.append(f"## {count}. {title}\n**Link Oficial:** [{url}]({url}) | **Fonte:** `{source}`\n**Resumo / Snippet de Correção:**\n```text\n{desc}\n```\n")
+        # Se for do StackOverflow novo, desc já traz a resposta completa em Markdown e código!
+        if "StackOverflow Aceita" in source or "StackOverflow Resposta" in source or "```" in desc:
+            formatted.append(f"## {count}. {title}\n**Link Oficial:** [{url}]({url}) | **Fonte:** `{source}`\n\n{desc}\n")
+        else:
+            formatted.append(f"## {count}. {title}\n**Link Oficial:** [{url}]({url}) | **Fonte:** `{source}`\n**Resumo / Detalhes:**\n```text\n{desc[:1000]}\n```\n")
+
         if count >= max_solutions:
             break
 
