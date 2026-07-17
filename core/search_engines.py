@@ -64,6 +64,162 @@ class BraveSearcher:
     6. Fallback Automático e Transparente: Se o serviço apresentar lentidão ou bloqueio, converte e estrutura dados de motores alternativos.
     """
     @classmethod
+    def _extract_brave_svelte_ast_v5(cls, txt: str, query: str, label: str, score_bonus: float) -> List[SearchResult]:
+        results = []
+        if not txt or ("kit.start(" not in txt and "web:{" not in txt):
+            return results
+
+        # 1. INFOBOX / KNOWLEDGE GRAPH CLUSTER
+        for m in re.finditer(r'infobox\s*:\s*\{[^}]*results\s*:\s*\[\s*\{', txt):
+            window = txt[m.start():min(len(txt), m.start() + 4500)]
+            t_m = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+            u_m = re.search(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', window)
+            d_m = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+            if t_m:
+                try:
+                    i_title = json.loads(t_m.group(1))
+                    i_url = json.loads(u_m.group(1)) if u_m else f"https://search.brave.com/search?q={quote(query)}"
+                    i_desc = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_m.group(1)))) if d_m else ""
+                    
+                    attrs_str = []
+                    attrs_match = re.search(r'attributes\s*:\s*\[(.*?)\]\s*,\s*[a-zA-Z0-9_]+:', window)
+                    if attrs_match:
+                        raw_pairs = re.findall(r'\[\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*("(?:\\["\\/bfnrt]|[^"\\])*"|null)\s*\]', attrs_match.group(1))
+                        for k_raw, v_raw in raw_pairs[:8]:
+                            k_cl = html.unescape(re.sub(r'<[^>]+>', '', json.loads(k_raw)))
+                            v_cl = html.unescape(re.sub(r'<[^>]+>', '', json.loads(v_raw))) if v_raw != 'null' else ""
+                            if k_cl and v_cl:
+                                attrs_str.append(f"{k_cl}: {v_cl}")
+                    if attrs_str:
+                        i_desc += "\n📌 **Atributos & Dados Oficiais:**\n" + "\n".join([f"• `{a}`" for a in attrs_str])
+                    results.append(SearchResult(
+                        title=f"💡 [Knowledge Card] {i_title}",
+                        url=i_url,
+                        description=i_desc[:800],
+                        source=f"{label} [JS AST v5]",
+                        score=6.5 + score_bonus
+                    ))
+                except Exception:
+                    pass
+
+        # 2. FAQ & Q&A CLUSTER
+        for m in re.finditer(r'(?:faq|qa)\s*:\s*\{[^{]*?(?:items|results|question)\s*:', txt):
+            window = txt[m.start():min(len(txt), m.start() + 4500)]
+            q_matches = re.findall(r'question\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*answer\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
+            for q_str, a_str in q_matches[:6]:
+                try:
+                    q_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(q_str)))
+                    a_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(a_str)))
+                    results.append(SearchResult(
+                        title=f"💬 [FAQ / Direct Answer] {q_clean}",
+                        url=f"https://search.brave.com/search?q={quote(query)}",
+                        description=a_clean,
+                        source=f"{label} [JS AST v5]",
+                        score=5.8 + score_bonus
+                    ))
+                except Exception:
+                    continue
+
+        # 3. DISCUSSIONS / FORUMS CLUSTER (Reddit, HackerNews, StackOverflow)
+        for m in re.finditer(r'(?:discussions|similar_pages)\s*:\s*\{[^}]*results\s*:\s*\[', txt):
+            window = txt[m.start():min(len(txt), m.start() + 5000)]
+            matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
+            for t_str, u_str, d_str in matches[:6]:
+                try:
+                    t_clean = json.loads(t_str)
+                    u_clean = json.loads(u_str)
+                    if any(skip in u_clean for skip in ["brave.com", "w3.org", "javascript:"]):
+                        continue
+                    d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Discussão em comunidade técnica/fórum."
+                    results.append(SearchResult(
+                        title=f"🗣️ [Discussão Reddit/Fórum] {t_clean}",
+                        url=u_clean,
+                        description=d_clean,
+                        source=f"{label} [JS AST v5]",
+                        score=5.0 + score_bonus
+                    ))
+                except Exception:
+                    continue
+
+        # 4. VIDEOS & NEWS CLUSTERS
+        for cluster_name, icon in [("videos", "🎬 [Vídeo]"), ("news", "📰 [Notícia]")]:
+            for m in re.finditer(rf'{cluster_name}\s*:\s*\{{[^}}]*results\s*:\s*\[', txt):
+                window = txt[m.start():min(len(txt), m.start() + 4000)]
+                matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
+                for t_str, u_str, d_str in matches[:4]:
+                    try:
+                        t_clean = json.loads(t_str)
+                        u_clean = json.loads(u_str)
+                        d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else f"Resultado do cluster {cluster_name}"
+                        results.append(SearchResult(
+                            title=f"{icon} {t_clean}",
+                            url=u_clean,
+                            description=d_clean,
+                            source=f"{label} [JS AST v5]",
+                            score=4.6 + score_bonus
+                        ))
+                    except Exception:
+                        continue
+
+        # 5. PURE ORGANIC WEB RESULTS + DEEP SITELINKS (`web:{results:[...]}`)
+        web_idx = txt.find("web:{")
+        if web_idx != -1:
+            web_window = txt[web_idx:min(len(txt), web_idx + 180000)]
+            item_starts = [m.start() for m in re.finditer(r'\{title\s*:\s*"(?:\\["\\/bfnrt]|[^"\\])*"\s*,\s*url\s*:\s*"https?://', web_window)]
+            for i, idx in enumerate(item_starts):
+                end_idx = item_starts[i + 1] if i + 1 < len(item_starts) else min(len(web_window), idx + 5000)
+                item_txt = web_window[idx:end_idx]
+                try:
+                    t_m = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', item_txt)
+                    u_m = re.search(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', item_txt)
+                    if not (t_m and u_m):
+                        continue
+                    t_clean = json.loads(t_m.group(1))
+                    u_clean = json.loads(u_m.group(1))
+                    if any(skip in u_clean for skip in ["brave.com", "w3.org", "javascript:"]):
+                        continue
+
+                    pre_cluster_txt = item_txt.split("cluster:[")[0]
+                    d_m = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', pre_cluster_txt)
+                    d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_m.group(1)))) if d_m else ""
+
+                    age_m = re.search(r'(?:page_age|age)\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', pre_cluster_txt)
+                    if age_m:
+                        age_clean = json.loads(age_m.group(1))
+                        if age_clean and age_clean != "void 0":
+                            d_clean = f"🕒 [{age_clean}] {d_clean}"
+
+                    sitelinks = []
+                    cluster_match = re.search(r'cluster\s*:\s*\[(\{.*?\})\]', item_txt)
+                    if cluster_match:
+                        cl_items = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', cluster_match.group(1))
+                        for cl_t, cl_u, cl_d in cl_items[:5]:
+                            sl_title = json.loads(cl_t)
+                            sl_url = json.loads(cl_u)
+                            sl_desc = html.unescape(re.sub(r'<[^>]+>', '', json.loads(cl_d))) if cl_d else ""
+                            if sl_title and sl_url and sl_url != u_clean:
+                                sitelinks.append(f"• **[{sl_title}]({sl_url})**: {sl_desc[:140]}")
+
+                    if sitelinks:
+                        d_clean += "\n📌 **Sitelinks & Subpáginas do Domínio:**\n" + "\n".join(sitelinks)
+
+                    score_js = 3.5 + score_bonus
+                    if label == "Brave Tech Goggles":
+                        score_js += 0.8
+
+                    results.append(SearchResult(
+                        title=t_clean,
+                        url=u_clean,
+                        description=d_clean,
+                        source=f"{label} [JS AST v5]",
+                        score=score_js
+                    ))
+                except Exception:
+                    continue
+
+        return results
+
+    @classmethod
     async def search(
         cls,
         query: str,
@@ -167,157 +323,17 @@ class BraveSearcher:
                         except Exception:
                             pass
 
+
                         # -----------------------------------------------------------------
-                        # CAMADA 1: Análise Universal do Svelte AST (`kit.start window data`)
+                        # CAMADA 1: Análise Universal do Svelte AST v5 (`kit.start window data`)
                         # -----------------------------------------------------------------
                         for script in soup.find_all("script"):
                             txt = script.string or ""
-                            if "kit.start(" not in txt and "web:{" not in txt:
-                                continue
-
-                            # 1.1 INFOBOX / KNOWLEDGE GRAPH CLUSTER
-                            for m in re.finditer(r'infobox\s*:\s*\{[^}]*results\s*:\s*\[\s*\{', txt):
-                                window = txt[m.start():min(len(txt), m.start() + 2800)]
-                                t_m = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                u_m = re.search(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                d_m = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                if t_m:
-                                    try:
-                                        i_title = json.loads(t_m.group(1))
-                                        i_url = json.loads(u_m.group(1)) if u_m else f"https://search.brave.com/search?q={quote(query)}"
-                                        i_desc = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_m.group(1)))) if d_m else ""
-                                        
-                                        attrs_str = []
-                                        attrs_match = re.search(r'attributes\s*:\s*\[(.*?)\]\s*,\s*[a-zA-Z0-9_]+:', window)
-                                        if attrs_match:
-                                            raw_pairs = re.findall(r'\[\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*("(?:\\["\\/bfnrt]|[^"\\])*"|null)\s*\]', attrs_match.group(1))
-                                            for k_raw, v_raw in raw_pairs[:6]:
-                                                k_cl = html.unescape(re.sub(r'<[^>]+>', '', json.loads(k_raw)))
-                                                v_cl = html.unescape(re.sub(r'<[^>]+>', '', json.loads(v_raw))) if v_raw != 'null' else ""
-                                                if k_cl and v_cl:
-                                                    attrs_str.append(f"{k_cl}: {v_cl}")
-                                        if attrs_str:
-                                            i_desc += "\n📌 Atributos: " + " | ".join(attrs_str)
-                                        dim_results.append(SearchResult(
-                                            title=f"💡 [Knowledge Card] {i_title}",
-                                            url=i_url,
-                                            description=i_desc[:500],
-                                            source=f"{label} [JS AST]",
-                                            score=5.5 + score_bonus
-                                        ))
-                                    except Exception:
-                                        pass
-
-                            # 1.2 FAQ & Q&A CLUSTER
-                            for m in re.finditer(r'(?:faq|qa)\s*:\s*\{[^{]*?(?:items|results|question)\s*:', txt):
-                                window = txt[m.start():min(len(txt), m.start() + 3500)]
-                                q_matches = re.findall(r'question\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*answer\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                for q_str, a_str in q_matches[:4]:
-                                    try:
-                                        q_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(q_str)))
-                                        a_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(a_str)))
-                                        dim_results.append(SearchResult(
-                                            title=f"💬 [FAQ / Direct Answer] {q_clean}",
-                                            url=f"https://search.brave.com/search?q={quote(query)}",
-                                            description=a_clean,
-                                            source=f"{label} [JS AST]",
-                                            score=5.1 + score_bonus
-                                        ))
-                                    except Exception:
-                                        continue
-
-                            # 1.3 DISCUSSIONS & REDDIT CLUSTER
-                            for m in re.finditer(r'(?:discussions|similar_pages)\s*:\s*\{[^}]*results\s*:\s*\[', txt):
-                                window = txt[m.start():min(len(txt), m.start() + 4000)]
-                                matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
-                                for t_str, u_str, d_str in matches[:5]:
-                                    try:
-                                        t_clean = json.loads(t_str)
-                                        u_clean = json.loads(u_str)
-                                        d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Discussão em comunidade"
-                                        if any(skip in u_clean for skip in ["brave.com", "w3.org"]):
-                                            continue
-                                        dim_results.append(SearchResult(
-                                            title=f"🗣️ [Discussão Reddit/Fórum] {t_clean}",
-                                            url=u_clean,
-                                            description=d_clean,
-                                            source=f"{label} [JS AST]",
-                                            score=4.6 + score_bonus
-                                        ))
-                                    except Exception:
-                                        continue
-
-                            # 1.4 VIDEOS CLUSTER
-                            for m in re.finditer(r'videos\s*:\s*\{[^}]*results\s*:\s*\[', txt):
-                                window = txt[m.start():min(len(txt), m.start() + 3500)]
-                                matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
-                                for t_str, u_str, d_str in matches[:4]:
-                                    try:
-                                        t_clean = json.loads(t_str)
-                                        u_clean = json.loads(u_str)
-                                        d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Vídeo relacionado"
-                                        dim_results.append(SearchResult(
-                                            title=f"🎬 [Vídeo] {t_clean}",
-                                            url=u_clean,
-                                            description=d_clean,
-                                            source=f"{label} [JS AST]",
-                                            score=4.2 + score_bonus
-                                        ))
-                                    except Exception:
-                                        continue
-
-                            # 1.5 NEWS CLUSTER
-                            for m in re.finditer(r'news\s*:\s*\{[^}]*results\s*:\s*\[', txt):
-                                window = txt[m.start():min(len(txt), m.start() + 3500)]
-                                matches = re.findall(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")\s*,\s*url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")(?:[^}]*?description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*"))?', window)
-                                for t_str, u_str, d_str in matches[:4]:
-                                    try:
-                                        t_clean = json.loads(t_str)
-                                        u_clean = json.loads(u_str)
-                                        d_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_str))) if (d_str and d_str.startswith('"')) else "Notícia em tempo real"
-                                        dim_results.append(SearchResult(
-                                            title=f"📰 [Notícia] {t_clean}",
-                                            url=u_clean,
-                                            description=d_clean,
-                                            source=f"{label} [JS AST]",
-                                            score=4.4 + score_bonus
-                                        ))
-                                    except Exception:
-                                        continue
-
-                            # 1.6 ORGANIC WEB RESULTS NO JS AST
-                            urls_found = [m for m in re.finditer(r'url\s*:\s*("https?://(?:\\["\\/bfnrt]|[^"\\])*")', txt)]
-                            for u_match in urls_found:
-                                try:
-                                    u_str = u_match.group(1)
-                                    url_clean = json.loads(u_str)
-                                    if any(skip in url_clean for skip in ["brave.com", "w3.org", "javascript:"]):
-                                        continue
-
-                                    start_p = max(0, u_match.start() - 500)
-                                    end_p = min(len(txt), u_match.end() + 850)
-                                    window = txt[start_p:end_p]
-
-                                    t_match = re.search(r'title\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                    title_clean = json.loads(t_match.group(1)) if t_match else "N/A"
-
-                                    d_match = re.search(r'description\s*:\s*("(?:\\["\\/bfnrt]|[^"\\])*")', window)
-                                    desc_clean = html.unescape(re.sub(r'<[^>]+>', '', json.loads(d_match.group(1)))) if d_match else ""
-
-                                    if title_clean != "N/A" and len(title_clean) > 2:
-                                        score_js = 2.8 + score_bonus
-                                        if label == "Brave Tech Goggles":
-                                            score_js += 0.5
-                                        dim_results.append(SearchResult(
-                                            title=title_clean,
-                                            url=url_clean,
-                                            description=desc_clean,
-                                            source=f"{label} [JS AST]",
-                                            score=score_js
-                                        ))
-                                except Exception:
-                                    continue
-                            break
+                            if "kit.start(" in txt or "web:{" in txt:
+                                ast_items = cls._extract_brave_svelte_ast_v5(txt, query, label, score_bonus)
+                                if ast_items:
+                                    dim_results.extend(ast_items)
+                                    break
 
                         # -----------------------------------------------------------------
                         # CAMADA 2: Extração DOM Complementar e Fallback
